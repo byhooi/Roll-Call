@@ -1,11 +1,11 @@
-# Claude Code 配置文件
+# Claude Code 配置文件（保留 CLAUDE.md 作为项目文档）
 .claude/
-CLAUDE.md
 
 # 操作系统文件
 .DS_Store
 Thumbs.db
 desktop.ini
+ehthumbs.db
 
 # 编辑器配置
 .vscode/
@@ -13,16 +13,31 @@ desktop.ini
 *.swp
 *.swo
 *~
+*.sublime-project
+*.sublime-workspace
 
 # 临时文件
 *.tmp
 *.log
+*.cache
 
-# Node.js (如果将来使用)
+# Node.js（如果将来使用）
 node_modules/
-npm-debug.log
-yarn-error.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
 
 # 备份文件
 *.bak
 *.backup
+*~
+
+# 测试文件
+test-data/
+*.test.html
+
+# 构建产物（如果将来使用打包工具）
+dist/
+build/
+.cache/
