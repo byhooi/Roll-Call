@@ -213,6 +213,9 @@ header h1 {
     box-shadow: 0 15px 40px rgba(102, 126, 234, 0.5);
     position: relative;
     overflow: hidden;
+    /* 确保按钮不会因为任何原因变暗 */
+    opacity: 1;
+    -webkit-tap-highlight-color: transparent;
 }
 
 .roll-btn::before {
@@ -236,11 +239,30 @@ header h1 {
 .roll-btn:hover {
     transform: translateY(-5px) scale(1.05);
     box-shadow: 0 25px 60px rgba(102, 126, 234, 0.7);
+    opacity: 1;
 }
 
 .roll-btn:active {
     transform: translateY(-2px) scale(1.02);
     box-shadow: 0 15px 40px rgba(102, 126, 234, 0.5);
+    opacity: 1;
+}
+
+.roll-btn:focus {
+    outline: none;
+    opacity: 1;
+}
+
+.roll-btn:focus-visible {
+    outline: 3px solid rgba(102, 126, 234, 0.5);
+    outline-offset: 3px;
+    opacity: 1;
+}
+
+/* 确保按钮在失去焦点后也能保持正常状态 */
+.roll-btn:not(:active):not(:hover):not(:focus) {
+    opacity: 1;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
 
 .student-info {
@@ -577,8 +599,8 @@ tbody tr:last-child td {
     background-clip: padding-box, border-box;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     display: flex;
-    align-items: center;
-    justify-content: space-between;
+    flex-direction: column;
+    gap: 12px;
 }
 
 .stat-item-card:hover {
@@ -589,6 +611,7 @@ tbody tr:last-child td {
 .stat-item-header {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 15px;
 }
 
@@ -616,7 +639,6 @@ tbody tr:last-child td {
 
 .stat-item-body {
     flex: 1;
-    padding: 0 20px;
 }
 
 .stat-seat {
@@ -633,13 +655,13 @@ tbody tr:last-child td {
 }
 
 .stat-item-footer {
-    text-align: right;
+    text-align: left;
 }
 
 .stat-last-call {
     font-size: 0.9em;
     color: #999;
-    min-width: 180px;
+    word-break: break-word;
 }
 
 /* 弹窗 */

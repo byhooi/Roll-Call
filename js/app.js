@@ -118,8 +118,10 @@ class RollCallApp {
         });
 
         // 点名按钮
-        this.elements.rollBtn.addEventListener('click', () => {
+        this.elements.rollBtn.addEventListener('click', (e) => {
             this.handleRollCall();
+            // 移除按钮焦点,防止按钮在点击后保持焦点状态导致样式异常
+            e.target.blur();
         });
 
         // 快捷键支持：空格键开始点名
@@ -533,7 +535,13 @@ class RollCallApp {
                 <div class="stat-item-footer">
                     <div class="stat-last-call">
                         最后点名：${student.lastCall ?
-                            new Date(student.lastCall).toLocaleString('zh-CN') : '从未被点'}
+                            new Date(student.lastCall).toLocaleString('zh-CN', {
+                                year: 'numeric',
+                                month: '2-digit',
+                                day: '2-digit',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                            }) : '从未被点'}
                     </div>
                 </div>
             </div>
