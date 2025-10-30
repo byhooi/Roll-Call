@@ -758,6 +758,103 @@ tbody tr:last-child td {
     animation: rollAnimation 0.5s ease-in-out;
 }
 
+/* 快速滚动动画 */
+.rolling-fast {
+    animation: rollingFast 0.1s ease-in-out infinite;
+}
+
+@keyframes rollingFast {
+    0%, 100% {
+        transform: translateY(0) scale(1);
+        opacity: 0.8;
+    }
+    50% {
+        transform: translateY(-10px) scale(1.05);
+        opacity: 1;
+    }
+}
+
+.rolling-text {
+    filter: blur(1px);
+    animation: textBlur 0.1s ease-in-out;
+}
+
+@keyframes textBlur {
+    0%, 100% { filter: blur(1px); }
+    50% { filter: blur(2px); }
+}
+
+/* 3D翻转动画 */
+.flip-in {
+    animation: flipIn 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+@keyframes flipIn {
+    0% {
+        transform: perspective(800px) rotateY(180deg) scale(0.5);
+        opacity: 0;
+    }
+    50% {
+        transform: perspective(800px) rotateY(90deg) scale(0.8);
+        opacity: 0.5;
+    }
+    100% {
+        transform: perspective(800px) rotateY(0deg) scale(1);
+        opacity: 1;
+    }
+}
+
+/* 发光文字效果 */
+.glow-text {
+    animation: glowPulse 1.5s ease-in-out infinite;
+    text-shadow:
+        0 0 10px rgba(102, 126, 234, 0.8),
+        0 0 20px rgba(102, 126, 234, 0.6),
+        0 0 30px rgba(102, 126, 234, 0.4),
+        0 0 40px rgba(118, 75, 162, 0.4);
+}
+
+@keyframes glowPulse {
+    0%, 100% {
+        text-shadow:
+            0 0 10px rgba(102, 126, 234, 0.8),
+            0 0 20px rgba(102, 126, 234, 0.6),
+            0 0 30px rgba(102, 126, 234, 0.4),
+            0 0 40px rgba(118, 75, 162, 0.4);
+    }
+    50% {
+        text-shadow:
+            0 0 20px rgba(102, 126, 234, 1),
+            0 0 30px rgba(102, 126, 234, 0.8),
+            0 0 40px rgba(102, 126, 234, 0.6),
+            0 0 50px rgba(118, 75, 162, 0.6),
+            0 0 60px rgba(118, 75, 162, 0.4);
+    }
+}
+
+/* 粒子效果 */
+.particle {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 100;
+    animation: particleExplosion 1s ease-out forwards;
+    box-shadow: 0 0 10px currentColor;
+}
+
+@keyframes particleExplosion {
+    0% {
+        transform: translate(0, 0) scale(1);
+        opacity: 1;
+    }
+    100% {
+        transform: translate(var(--tx), var(--ty)) scale(0);
+        opacity: 0;
+    }
+}
+
 /* 响应式设计 */
 @media (max-width: 768px) {
     header h1 {

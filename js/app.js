@@ -305,37 +305,122 @@ class RollCallApp {
             return;
         }
 
-        // 执行点名
-        this.state.selectedStudent = this.algorithm.rollCall();
+        // 禁用按钮防止重复点击
+        this.elements.rollBtn.disabled = true;
+        this.elements.rollBtn.style.opacity = '0.6';
+        this.elements.rollBtn.style.cursor = 'not-allowed';
 
-        if (this.state.selectedStudent) {
-            this.showSelectedStudent();
-            this.updateUI();
-        }
+        // 开始滚动动画
+        this.startRollingAnimation(() => {
+            // 执行点名
+            this.state.selectedStudent = this.algorithm.rollCall();
+
+            if (this.state.selectedStudent) {
+                this.showSelectedStudent();
+                this.updateUI();
+            }
+
+            // 恢复按钮
+            setTimeout(() => {
+                this.elements.rollBtn.disabled = false;
+                this.elements.rollBtn.style.opacity = '1';
+                this.elements.rollBtn.style.cursor = 'pointer';
+            }, 2000);
+        });
     }
 
     /**
-     * 显示被选中的学生
+     * 开始滚动动画 - 随机显示学生名字
+     */
+    startRollingAnimation(callback) {
+        const duration = 2000; // 滚动持续2秒
+        const interval = 80; // 每80毫秒切换一次
+        const iterations = Math.floor(duration / interval);
+        let count = 0;
+
+        // 添加滚动中的样式
+        this.elements.selectedStudent.classList.add('rolling-fast');
+
+        const rollInterval = setInterval(() => {
+            // 随机选择一个学生显示
+            const randomStudent = this.state.students[Math.floor(Math.random() * this.state.students.length)];
+
+            this.elements.selectedStudent.innerHTML = `
+                <div class="name rolling-text">${randomStudent.name}</div>
+                <div class="seat rolling-text">座位号：${randomStudent.seat}</div>
+            `;
+
+            count++;
+
+            // 逐渐减慢速度
+            if (count >= iterations - 5) {
+                clearInterval(rollInterval);
+                setTimeout(() => {
+                    this.elements.selectedStudent.classList.remove('rolling-fast');
+                    callback();
+                }, 200);
+            }
+        }, interval);
+    }
+
+    /**
+     * 显示被选中的学生（带酷炫动画）
      */
     showSelectedStudent() {
         if (!this.state.selectedStudent) return;
 
         const student = this.state.selectedStudent;
 
+        // 创建粒子爆炸效果
+        this.createParticleExplosion();
+
+        // 添加3D翻转动画
+        this.elements.selectedStudent.classList.add('flip-in');
+
         this.elements.selectedStudent.innerHTML = `
-            <div class="name">${student.name}</div>
-            <div class="seat">座位号：${student.seat}</div>
+            <div class="name glow-text">${student.name}</div>
+            <div class="seat glow-text">座位号：${student.seat}</div>
         `;
 
         this.elements.studentInfo.innerHTML = `
-            该学生本周期内已被点中 ${student.callCount} 次
+            该学生本周期内已被点中 <strong>${student.callCount}</strong> 次
         `;
 
-        // 添加动画效果
-        this.elements.selectedStudent.classList.add('rolling');
+        // 移除动画类
         setTimeout(() => {
-            this.elements.selectedStudent.classList.remove('rolling');
-        }, 500);
+            this.elements.selectedStudent.classList.remove('flip-in');
+        }, 1000);
+    }
+
+    /**
+     * 创建粒子爆炸效果
+     */
+    createParticleExplosion() {
+        const resultDisplay = document.querySelector('.result-display');
+        const colors = ['#667eea', '#764ba2', '#f093fb', '#4facfe', '#00f2fe', '#43e97b'];
+
+        // 创建30个粒子
+        for (let i = 0; i < 30; i++) {
+            const particle = document.createElement('div');
+            particle.className = 'particle';
+            particle.style.background = colors[Math.floor(Math.random() * colors.length)];
+
+            // 随机方向和距离
+            const angle = (Math.PI * 2 * i) / 30;
+            const velocity = 100 + Math.random() * 100;
+            const tx = Math.cos(angle) * velocity;
+            const ty = Math.sin(angle) * velocity;
+
+            particle.style.setProperty('--tx', `${tx}px`);
+            particle.style.setProperty('--ty', `${ty}px`);
+
+            resultDisplay.appendChild(particle);
+
+            // 动画结束后移除
+            setTimeout(() => {
+                particle.remove();
+            }, 1000);
+        }
     }
 
     /**
