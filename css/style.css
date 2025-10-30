@@ -216,6 +216,10 @@ header h1 {
     /* 确保按钮不会因为任何原因变暗 */
     opacity: 1 !important;
     -webkit-tap-highlight-color: transparent;
+    /* iOS Safari特殊处理 */
+    -webkit-appearance: none;
+    -webkit-user-select: none;
+    user-select: none;
 }
 
 /* 按钮禁用状态 */
@@ -223,7 +227,18 @@ header h1 {
 .roll-btn:disabled {
     opacity: 0.5 !important;
     cursor: not-allowed !important;
-    pointer-events: none;
+    pointer-events: none !important;
+    -webkit-filter: grayscale(0);
+    filter: grayscale(0);
+}
+
+/* 确保按钮正常状态在所有浏览器中一致 */
+.roll-btn:not(.btn-disabled):not(:disabled) {
+    opacity: 1 !important;
+    cursor: pointer !important;
+    pointer-events: auto !important;
+    -webkit-filter: none;
+    filter: none;
 }
 
 .roll-btn::before {

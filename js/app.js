@@ -121,13 +121,7 @@ class RollCallApp {
         this.elements.rollBtn.addEventListener('click', (e) => {
             this.handleRollCall();
             // 移除按钮焦点,防止按钮在点击后保持焦点状态导致样式异常
-            const btn = e.target;
-            btn.blur();
-            // 强制重置按钮状态
-            setTimeout(() => {
-                btn.style.opacity = '1';
-                btn.blur();
-            }, 100);
+            e.target.blur();
         });
 
         // 快捷键支持：空格键开始点名
@@ -321,9 +315,35 @@ class RollCallApp {
 
             // 恢复按钮（1.5秒后）
             setTimeout(() => {
-                this.elements.rollBtn.disabled = false;
-                this.elements.rollBtn.classList.remove('btn-disabled');
+                this.enableRollButton();
             }, 1500);
+        });
+    }
+
+    /**
+     * 恢复按钮状态（兼容iOS Safari）
+     */
+    enableRollButton() {
+        const btn = this.elements.rollBtn;
+
+        // 移除禁用状态
+        btn.disabled = false;
+        btn.classList.remove('btn-disabled');
+
+        // 强制移除所有可能的内联样式
+        btn.style.opacity = '';
+        btn.style.cursor = '';
+        btn.style.pointerEvents = '';
+
+        // 强制重绘（iOS Safari需要）
+        void btn.offsetHeight;
+
+        // 重新应用正常样式
+        btn.style.opacity = '1';
+
+        // 再次强制重绘
+        requestAnimationFrame(() => {
+            btn.style.opacity = '';
         });
     }
 
