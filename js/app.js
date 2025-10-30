@@ -319,11 +319,11 @@ class RollCallApp {
                 this.updateUI();
             }
 
-            // 恢复按钮
+            // 恢复按钮（1.5秒后）
             setTimeout(() => {
                 this.elements.rollBtn.disabled = false;
                 this.elements.rollBtn.classList.remove('btn-disabled');
-            }, 2000);
+            }, 1500);
         });
     }
 
@@ -331,8 +331,8 @@ class RollCallApp {
      * 开始滚动动画 - 随机显示学生名字
      */
     startRollingAnimation(callback) {
-        const duration = 2000; // 滚动持续2秒
-        const interval = 80; // 每80毫秒切换一次
+        const duration = 1200; // 滚动持续1.2秒
+        const interval = 60; // 每60毫秒切换一次
         const iterations = Math.floor(duration / interval);
         let count = 0;
 
@@ -350,13 +350,13 @@ class RollCallApp {
 
             count++;
 
-            // 逐渐减慢速度
-            if (count >= iterations - 5) {
+            // 完成滚动
+            if (count >= iterations) {
                 clearInterval(rollInterval);
                 setTimeout(() => {
                     this.elements.selectedStudent.classList.remove('rolling-fast');
                     callback();
-                }, 200);
+                }, 150);
             }
         }, interval);
     }
@@ -387,7 +387,7 @@ class RollCallApp {
         // 移除动画类
         setTimeout(() => {
             this.elements.selectedStudent.classList.remove('flip-in');
-        }, 1000);
+        }, 600);
     }
 
     /**

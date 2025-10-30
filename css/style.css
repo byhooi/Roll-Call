@@ -794,7 +794,7 @@ tbody tr:last-child td {
 
 /* 3D翻转动画 */
 .flip-in {
-    animation: flipIn 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    animation: flipIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
 }
 
 @keyframes flipIn {
