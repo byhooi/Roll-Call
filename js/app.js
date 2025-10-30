@@ -121,7 +121,13 @@ class RollCallApp {
         this.elements.rollBtn.addEventListener('click', (e) => {
             this.handleRollCall();
             // 移除按钮焦点,防止按钮在点击后保持焦点状态导致样式异常
-            e.target.blur();
+            const btn = e.target;
+            btn.blur();
+            // 强制重置按钮状态
+            setTimeout(() => {
+                btn.style.opacity = '1';
+                btn.blur();
+            }, 100);
         });
 
         // 快捷键支持：空格键开始点名

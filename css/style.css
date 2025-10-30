@@ -204,8 +204,8 @@ header h1 {
     padding: 28px 70px;
     font-size: 2em;
     font-weight: 700;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    color: white !important;
     border: none;
     border-radius: 60px;
     cursor: pointer;
@@ -214,7 +214,7 @@ header h1 {
     position: relative;
     overflow: hidden;
     /* 确保按钮不会因为任何原因变暗 */
-    opacity: 1;
+    opacity: 1 !important;
     -webkit-tap-highlight-color: transparent;
 }
 
@@ -239,30 +239,34 @@ header h1 {
 .roll-btn:hover {
     transform: translateY(-5px) scale(1.05);
     box-shadow: 0 25px 60px rgba(102, 126, 234, 0.7);
-    opacity: 1;
+    opacity: 1 !important;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
 }
 
 .roll-btn:active {
     transform: translateY(-2px) scale(1.02);
     box-shadow: 0 15px 40px rgba(102, 126, 234, 0.5);
-    opacity: 1;
+    opacity: 1 !important;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
 }
 
 .roll-btn:focus {
     outline: none;
-    opacity: 1;
+    opacity: 1 !important;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
 }
 
 .roll-btn:focus-visible {
     outline: 3px solid rgba(102, 126, 234, 0.5);
     outline-offset: 3px;
-    opacity: 1;
+    opacity: 1 !important;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
 }
 
 /* 确保按钮在失去焦点后也能保持正常状态 */
 .roll-btn:not(:active):not(:hover):not(:focus) {
-    opacity: 1;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    opacity: 1 !important;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
 }
 
 .student-info {
