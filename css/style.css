@@ -218,6 +218,14 @@ header h1 {
     -webkit-tap-highlight-color: transparent;
 }
 
+/* 按钮禁用状态 */
+.roll-btn.btn-disabled,
+.roll-btn:disabled {
+    opacity: 0.5 !important;
+    cursor: not-allowed !important;
+    pointer-events: none;
+}
+
 .roll-btn::before {
     content: '';
     position: absolute;

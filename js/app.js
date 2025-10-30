@@ -307,8 +307,7 @@ class RollCallApp {
 
         // 禁用按钮防止重复点击
         this.elements.rollBtn.disabled = true;
-        this.elements.rollBtn.style.opacity = '0.6';
-        this.elements.rollBtn.style.cursor = 'not-allowed';
+        this.elements.rollBtn.classList.add('btn-disabled');
 
         // 开始滚动动画
         this.startRollingAnimation(() => {
@@ -323,8 +322,7 @@ class RollCallApp {
             // 恢复按钮
             setTimeout(() => {
                 this.elements.rollBtn.disabled = false;
-                this.elements.rollBtn.style.opacity = '1';
-                this.elements.rollBtn.style.cursor = 'pointer';
+                this.elements.rollBtn.classList.remove('btn-disabled');
             }, 2000);
         });
     }
@@ -378,8 +376,8 @@ class RollCallApp {
         this.elements.selectedStudent.classList.add('flip-in');
 
         this.elements.selectedStudent.innerHTML = `
-            <div class="name glow-text">${student.name}</div>
-            <div class="seat glow-text">座位号：${student.seat}</div>
+            <div class="name">${student.name}</div>
+            <div class="seat">座位号：${student.seat}</div>
         `;
 
         this.elements.studentInfo.innerHTML = `
