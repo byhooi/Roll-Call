@@ -13,6 +13,8 @@ class StorageManager {
         this.seatIndex = new Map();
         this.autoBackupInterval = null;
         this.backupEnabled = false;
+        this.dataCache = null;
+        this.lastBackupSignature = null;
     }
 
     /**
@@ -36,6 +38,7 @@ class StorageManager {
         this.disableAutoBackup();
 
         this.backupEnabled = true;
+        this.lastBackupSignature = null;
         this.autoBackupInterval = setInterval(() => {
             if (this.backupEnabled && this.hasData()) {
                 this.createAutoBackup();
@@ -60,6 +63,7 @@ class StorageManager {
             this.autoBackupInterval = null;
         }
         this.backupEnabled = false;
+        this.lastBackupSignature = null;
 
         if (wasActive) {
             console.log('自动备份已禁用');
@@ -87,13 +91,22 @@ class StorageManager {
 
         try {
             const data = this.getAllData();
+            if (!data.students.length && !data.callHistory.length) {
+                return;
+            }
             const backupData = {
                 data,
                 timestamp: new Date().toISOString(),
                 version: '1.0'
             };
 
-            localStorage.setItem(this.backupKey, JSON.stringify(backupData));
+            const payload = JSON.stringify(backupData);
+            if (payload === this.lastBackupSignature) {
+                return;
+            }
+
+            localStorage.setItem(this.backupKey, payload);
+            this.lastBackupSignature = payload;
             console.log('自动备份创建成功');
         } catch (error) {
             if (this.isQuotaExceeded(error)) {
@@ -155,6 +168,7 @@ class StorageManager {
     clearAllBackups() {
         try {
             localStorage.removeItem(this.backupKey);
+            this.lastBackupSignature = null;
             console.log('所有备份已清除');
             return true;
         } catch (error) {
@@ -181,28 +195,37 @@ class StorageManager {
     /**
      * 获取全部数据
      */
-    getAllData() {
-        try {
-            const raw = localStorage.getItem(this.storageKey);
-            if (!raw) {
-                return this.createDefaultData();
-            }
-
-            const parsed = JSON.parse(raw);
-            return {
-                ...this.createDefaultData(),
-                ...parsed,
-                students: Array.isArray(parsed.students) ? parsed.students : [],
-                callHistory: Array.isArray(parsed.callHistory) ? parsed.callHistory : [],
-                stats: {
-                    ...this.createDefaultData().stats,
-                    ...(parsed.stats || {})
+    getAllData(forceReload = false) {
+        if (!this.dataCache || forceReload) {
+            try {
+                const raw = localStorage.getItem(this.storageKey);
+                if (!raw) {
+                    this.dataCache = this.createDefaultData();
+                } else {
+                    const parsed = JSON.parse(raw);
+                    const defaults = this.createDefaultData();
+                    this.dataCache = {
+                        ...defaults,
+                        ...parsed,
+                        students: Array.isArray(parsed.students) ? parsed.students : [],
+                        callHistory: Array.isArray(parsed.callHistory) ? parsed.callHistory : [],
+                        stats: {
+                            ...defaults.stats,
+                            ...(parsed.stats || {})
+                        }
+                    };
                 }
-            };
-        } catch (error) {
-            console.error('获取数据失败:', error);
-            return this.createDefaultData();
+            } catch (error) {
+                console.error('获取数据失败:', error);
+                this.dataCache = this.createDefaultData();
+            }
         }
+        return this.dataCache;
+    }
+
+    reloadCache() {
+        this.dataCache = null;
+        return this.getAllData(true);
     }
 
     /**
@@ -213,6 +236,8 @@ class StorageManager {
 
         try {
             localStorage.setItem(this.storageKey, payload);
+            this.dataCache = data;
+            this.lastBackupSignature = null;
             return true;
         } catch (error) {
             if (this.isQuotaExceeded(error)) {
@@ -223,6 +248,8 @@ class StorageManager {
                 if (backupsCleared) {
                     try {
                         localStorage.setItem(this.storageKey, payload);
+                        this.dataCache = data;
+                        this.lastBackupSignature = null;
                         return true;
                     } catch (retryError) {
                         console.error('清理备份后仍无法保存数据:', retryError);
@@ -232,6 +259,7 @@ class StorageManager {
                 console.error('保存数据失败:', error);
             }
 
+            this.reloadCache();
             return false;
         }
     }
@@ -247,9 +275,22 @@ class StorageManager {
     /**
      * 保存学生列表
      */
-    saveStudents(students) {
+    saveStudents(students, options = {}) {
+        const { resetHistory = false, resetStats = false } = options;
         const data = this.getAllData();
         data.students = students;
+
+        if (resetHistory) {
+            data.callHistory = [];
+        }
+
+        if (resetStats) {
+            data.stats = {
+                cycleStart: new Date().toISOString().split('T')[0],
+                totalCalls: 0
+            };
+        }
+
         this.updateIndexes(students);
         return this.saveAllData(data);
     }
@@ -428,7 +469,11 @@ class StorageManager {
     clearAllData() {
         const emptyData = this.createDefaultData();
         this.updateIndexes(emptyData.students);
-        return this.saveAllData(emptyData);
+        const result = this.saveAllData(emptyData);
+        if (result) {
+            this.clearAllBackups();
+        }
+        return result;
     }
 
     /**

@@ -103,21 +103,19 @@ class ExcelManager {
                             return;
                         }
 
-                        // 保存学生数据
-                        if (this.storage.saveStudents(students)) {
-                            resolve({
-                                success: true,
-                                count: students.length,
-                                message: `成功导入 ${students.length} 名学生`,
-                                newStudents: students
-                            });
-                        } else {
-                            reject(new Error('保存学生数据失败'));
-                        }
+                        resolve({
+                            success: true,
+                            count: students.length,
+                            students
+                        });
 
                     } catch (error) {
                         reject(new Error('解析 Excel 文件失败: ' + error.message));
                     }
+                };
+
+                reader.onerror = () => {
+                    reject(new Error('读取 Excel 文件失败'));
                 };
 
                 reader.readAsArrayBuffer(file);

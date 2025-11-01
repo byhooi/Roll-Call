@@ -36,6 +36,105 @@ class NotificationSystem {
     }
 }
 
+class DialogService {
+    static confirm({
+        title = '提示',
+        message = '',
+        confirmText = '确定',
+        cancelText = '取消',
+        type = 'info'
+    } = {}) {
+        return new Promise((resolve) => {
+            const overlay = document.createElement('div');
+            overlay.className = 'modal active confirm-modal';
+            overlay.dataset.type = type;
+
+            const content = document.createElement('div');
+            content.className = 'modal-content confirm-content';
+
+            const titleElement = document.createElement('h3');
+            titleElement.textContent = title;
+
+            const messageContainer = document.createElement('div');
+            messageContainer.className = 'confirm-message';
+            if (typeof message === 'string') {
+                messageContainer.innerHTML = message;
+            } else if (message instanceof Node) {
+                messageContainer.appendChild(message);
+            }
+
+            const buttons = document.createElement('div');
+            buttons.className = 'modal-buttons';
+
+            const cancelButton = document.createElement('button');
+            cancelButton.type = 'button';
+            cancelButton.className = 'btn btn-secondary';
+            cancelButton.textContent = cancelText;
+
+            const confirmButton = document.createElement('button');
+            confirmButton.type = 'button';
+            const confirmClasses = ['btn'];
+            if (type === 'danger') {
+                confirmClasses.push('btn-danger');
+            } else if (type === 'warning') {
+                confirmClasses.push('btn-warning');
+            } else {
+                confirmClasses.push('btn-primary');
+            }
+            confirmButton.className = confirmClasses.join(' ');
+            confirmButton.textContent = confirmText;
+
+            buttons.append(cancelButton, confirmButton);
+            content.append(titleElement, messageContainer, buttons);
+            overlay.appendChild(content);
+            document.body.appendChild(overlay);
+
+            const cleanup = () => {
+                document.removeEventListener('keydown', handleKeyDown);
+                overlay.remove();
+            };
+
+            const handleCancel = () => {
+                cleanup();
+                resolve(false);
+            };
+
+            const handleConfirm = () => {
+                cleanup();
+                resolve(true);
+            };
+
+            const handleKeyDown = (event) => {
+                if (event.key === 'Escape') {
+                    handleCancel();
+                }
+                if (event.key === 'Enter') {
+                    handleConfirm();
+                }
+            };
+
+            cancelButton.addEventListener('click', handleCancel);
+            confirmButton.addEventListener('click', handleConfirm);
+            overlay.addEventListener('click', (event) => {
+                if (event.target === overlay) {
+                    handleCancel();
+                }
+            });
+            document.addEventListener('keydown', handleKeyDown);
+
+            requestAnimationFrame(() => {
+                confirmButton.focus();
+            });
+        });
+    }
+
+    static escapeHtml(text = '') {
+        const temp = document.createElement('div');
+        temp.textContent = text;
+        return temp.innerHTML;
+    }
+}
+
 // 创建 RollCallApp 类
 class RollCallApp {
     constructor() {
@@ -87,6 +186,7 @@ class RollCallApp {
 
         // 学生管理页面
         this.elements.importExcel = document.getElementById('import-excel');
+        this.elements.importExcelBtn = document.getElementById('import-excel-btn');
         this.elements.addStudentBtn = document.getElementById('add-student-btn');
         this.elements.clearDataBtn = document.getElementById('clear-data-btn');
         this.elements.studentCount = document.getElementById('student-count');
@@ -133,7 +233,6 @@ class RollCallApp {
         });
 
         // 学生管理
-        this.elements.importExcelBtn = document.getElementById('import-excel-btn');
         this.elements.importExcel.addEventListener('change', (e) => {
             this.handleImportExcel(e.target.files[0]);
         });
@@ -149,6 +248,15 @@ class RollCallApp {
         this.elements.clearDataBtn.addEventListener('click', () => {
             this.handleClearData();
         });
+
+        if (this.elements.studentsTbody) {
+            this.elements.studentsTbody.addEventListener('click', (event) => {
+                const deleteButton = event.target.closest('[data-action="delete-student"]');
+                if (deleteButton) {
+                    this.deleteStudent(deleteButton.dataset.id);
+                }
+            });
+        }
 
         // 统计分析
         this.elements.resetStatsBtn.addEventListener('click', () => {
@@ -313,10 +421,10 @@ class RollCallApp {
                 this.updateUI();
             }
 
-            // 恢复按钮（1.5秒后）
+            // 动画完成后适时恢复按钮可用
             setTimeout(() => {
                 this.enableRollButton();
-            }, 1500);
+            }, 900);
         });
     }
 
@@ -351,34 +459,34 @@ class RollCallApp {
      * 开始滚动动画 - 随机显示学生名字
      */
     startRollingAnimation(callback) {
-        const duration = 1200; // 滚动持续1.2秒
-        const interval = 60; // 每60毫秒切换一次
-        const iterations = Math.floor(duration / interval);
+        const interval = 45;
+        const duration = Math.max(450, Math.min(900, this.state.students.length * 25 + 450));
+        const iterations = Math.max(Math.floor(duration / interval), 1);
         let count = 0;
+        let rollInterval;
 
-        // 添加滚动中的样式
         this.elements.selectedStudent.classList.add('rolling-fast');
 
-        const rollInterval = setInterval(() => {
-            // 随机选择一个学生显示
+        const tick = () => {
             const randomStudent = this.state.students[Math.floor(Math.random() * this.state.students.length)];
+            if (randomStudent) {
+                this.elements.selectedStudent.innerHTML = `
+                    <div class="name rolling-text">${randomStudent.name}</div>
+                    <div class="seat rolling-text">座位号：${randomStudent.seat}</div>
+                `;
+            }
 
-            this.elements.selectedStudent.innerHTML = `
-                <div class="name rolling-text">${randomStudent.name}</div>
-                <div class="seat rolling-text">座位号：${randomStudent.seat}</div>
-            `;
+            count += 1;
 
-            count++;
-
-            // 完成滚动
             if (count >= iterations) {
                 clearInterval(rollInterval);
-                setTimeout(() => {
-                    this.elements.selectedStudent.classList.remove('rolling-fast');
-                    callback();
-                }, 150);
+                this.elements.selectedStudent.classList.remove('rolling-fast');
+                requestAnimationFrame(callback);
             }
-        }, interval);
+        };
+
+        tick();
+        rollInterval = setInterval(tick, interval);
     }
 
     /**
@@ -445,49 +553,83 @@ class RollCallApp {
      * 导入 Excel 文件
      */
     async handleImportExcel(file) {
-        if (!file) return;
+        if (!file) {
+            return;
+        }
+
+        this.showLoading('正在导入学生名单...');
 
         try {
-            const previousStudents = this.storage.getStudents().map(student => ({ ...student }));
-            this.showLoading('正在导入学生名单...');
             const result = await this.excel.importStudentsFromExcel(file);
+            const validation = this.excel.validateStudentData(result.students);
 
-            // 验证数据质量
-            const validation = this.excel.validateStudentData(result.newStudents);
-
-            // 显示验证结果
-            if (!validation.isValid) {
-                let message = `发现 ${validation.errors.length} 个错误，${validation.warnings.length} 个警告：\n\n`;
-                validation.issues.forEach(issue => {
-                    message += issue.message + '\n';
+            if (validation.issues.length) {
+                const confirmed = await DialogService.confirm({
+                    title: '导入数据存在问题',
+                    message: this.buildImportValidationMessage(validation),
+                    confirmText: '继续导入',
+                    cancelText: '取消导入',
+                    type: validation.errors.length ? 'danger' : 'warning'
                 });
-                message += '\n是否继续导入？';
 
-                if (!confirm(message)) {
-                    // 恢复导入前的数据快照
-                    this.storage.saveStudents(previousStudents);
-                    this.elements.importExcel.value = '';
-                    this.loadInitialData();
-                    this.updateUI();
-                    this.updateCurrentTab();
-                    NotificationSystem.info('导入已取消，已恢复原有学生名单');
+                if (!confirmed) {
+                    NotificationSystem.info('导入已取消');
                     return;
                 }
             }
 
-            // 重置文件输入
-            this.elements.importExcel.value = '';
+            const persisted = this.storage.saveStudents(result.students, {
+                resetHistory: true,
+                resetStats: true
+            });
 
-            NotificationSystem.success(result.message);
+            if (!persisted) {
+                throw new Error('保存学生数据失败');
+            }
+
+            NotificationSystem.success(`成功导入 ${result.count} 名学生`);
+
+            if (validation.errors.length) {
+                NotificationSystem.info(`导入仍包含 ${validation.errors.length} 个错误，请尽快修复数据`);
+            } else if (validation.warnings.length) {
+                NotificationSystem.info(`检测到 ${validation.warnings.length} 个警告，请检查导入数据`);
+            }
+
             this.loadInitialData();
             this.updateUI();
             this.updateCurrentTab();
-
         } catch (error) {
             NotificationSystem.error('导入失败: ' + error.message);
         } finally {
+            this.elements.importExcel.value = '';
             this.hideLoading();
         }
+    }
+
+    buildImportValidationMessage(validation) {
+        const issues = validation.issues
+            .map(issue => `<li>${DialogService.escapeHtml(issue.message)}</li>`)
+            .join('');
+
+        const counts = [];
+        if (validation.errors.length) {
+            counts.push(`${validation.errors.length} 个错误`);
+        }
+        if (validation.warnings.length) {
+            counts.push(`${validation.warnings.length} 个警告`);
+        }
+        const summary = counts.length ? `发现 ${counts.join('、')}：` : '检测到以下问题：';
+        const notice = validation.errors.length
+            ? '<p class="confirm-alert">存在严重错误，建议修复后再导入，继续导入将覆盖当前学生名单。</p>'
+            : '<p class="confirm-alert">继续导入将覆盖当前学生名单，请确认。</p>';
+
+        return `
+            <p>${summary}</p>
+            <ul class="confirm-issues">
+                ${issues}
+            </ul>
+            ${notice}
+        `;
     }
 
     /**
@@ -559,7 +701,7 @@ class RollCallApp {
                 <td>${student.seat}</td>
                 <td>${student.name}</td>
                 <td>
-                    <button class="btn btn-sm btn-danger" onclick="app.deleteStudent('${student.id}')">删除</button>
+                    <button class="btn btn-sm btn-danger" data-action="delete-student" data-id="${student.id}">删除</button>
                 </td>
             </tr>
         `).join('');
@@ -570,25 +712,31 @@ class RollCallApp {
     /**
      * 删除学生
      */
-    deleteStudent(studentId) {
-        // 获取学生信息用于显示确认对话框
+    async deleteStudent(studentId) {
         const student = this.storage.getStudentById(studentId);
         if (!student) {
             NotificationSystem.error('学生不存在');
             return;
         }
 
-        const confirmMessage = `
-            <div style="text-align: left;">
-                <strong>确认删除学生？</strong><br>
-                姓名：${student.name}<br>
-                座位号：${student.seat}<br>
-                被点次数：${student.callCount}<br>
-                <span style="color: #666; font-size: 0.9em;">此操作不可恢复</span>
+        const message = `
+            <p>确认删除以下学生？该操作不可撤销。</p>
+            <div class="confirm-student">
+                <p><strong>姓名：</strong>${DialogService.escapeHtml(student.name)}</p>
+                <p><strong>座位号：</strong>${DialogService.escapeHtml(String(student.seat))}</p>
+                <p><strong>当前被点次数：</strong>${student.callCount || 0}</p>
             </div>
         `;
 
-        if (!confirm(confirmMessage)) {
+        const confirmed = await DialogService.confirm({
+            title: '删除学生',
+            message,
+            confirmText: '删除',
+            cancelText: '保留',
+            type: 'danger'
+        });
+
+        if (!confirmed) {
             return;
         }
 
@@ -662,8 +810,16 @@ class RollCallApp {
     /**
      * 重置统计周期
      */
-    handleResetStats() {
-        if (!confirm('确定要重置统计周期吗？这将清零所有学生的被点名次数！')) {
+    async handleResetStats() {
+        const confirmed = await DialogService.confirm({
+            title: '重置统计周期',
+            message: '<p>重置后将清零所有学生的被点名次数并清空点名历史。</p>',
+            confirmText: '立即重置',
+            cancelText: '取消',
+            type: 'warning'
+        });
+
+        if (!confirmed) {
             return;
         }
 
@@ -693,25 +849,32 @@ class RollCallApp {
     /**
      * 清空所有数据
      */
-    handleClearData() {
-        if (!confirm('确定要清空所有数据吗？\n\n这将删除：\n- 所有学生信息\n- 所有点名历史记录\n- 所有统计数据\n\n此操作不可恢复！')) {
-            return;
-        }
+    async handleClearData() {
+        const confirmed = await DialogService.confirm({
+            title: '清空所有数据',
+            message: `
+                <p>该操作将删除以下内容：</p>
+                <ul class="confirm-issues">
+                    <li>所有学生信息</li>
+                    <li>全部点名历史</li>
+                    <li>统计数据与备份</li>
+                </ul>
+                <p class="confirm-alert">此操作不可恢复，请谨慎执行。</p>
+            `,
+            confirmText: '彻底清空',
+            cancelText: '保留数据',
+            type: 'danger'
+        });
 
-        // 二次确认
-        if (!confirm('最后确认：真的要清空所有数据吗？')) {
+        if (!confirmed) {
             return;
         }
 
         try {
-            // 清空所有数据
             this.storage.clearAllData();
-
-            // 重新加载数据
             this.loadInitialData();
             this.updateUI();
             this.updateCurrentTab();
-
             NotificationSystem.success('所有数据已清空');
         } catch (error) {
             NotificationSystem.error('清空数据失败: ' + error.message);

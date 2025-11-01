@@ -760,6 +760,57 @@ tbody tr:last-child td {
     flex: 1;
 }
 
+.confirm-modal .modal-content {
+    border-top: 4px solid #667eea;
+    animation: fadeIn 0.25s ease-out;
+}
+
+.confirm-modal[data-type="danger"] .modal-content {
+    border-top-color: #dc3545;
+}
+
+.confirm-modal[data-type="warning"] .modal-content {
+    border-top-color: #ffc107;
+}
+
+.confirm-message {
+    color: #495057;
+    line-height: 1.6;
+}
+
+.confirm-message ul {
+    margin: 15px 0 0;
+    padding-left: 20px;
+    max-height: 240px;
+    overflow-y: auto;
+}
+
+.confirm-issues {
+    list-style: disc;
+}
+
+.confirm-message li {
+    margin-bottom: 6px;
+}
+
+.confirm-alert {
+    margin-top: 18px;
+    color: #dc3545;
+    font-weight: 600;
+}
+
+.confirm-modal .modal-buttons {
+    margin-top: 25px;
+}
+
+.confirm-student p {
+    margin: 6px 0;
+}
+
+.confirm-student strong {
+    color: #343a40;
+}
+
 /* 动画 */
 @keyframes fadeIn {
     from {
