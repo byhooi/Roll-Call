@@ -176,8 +176,8 @@ class RollCallApp {
     cacheElements() {
         // 主要容器
         this.elements.container = document.querySelector('.container');
-        this.elements.tabs = document.querySelectorAll('.tab-btn');
-        this.elements.tabContents = document.querySelectorAll('.tab-content');
+        this.elements.tabs = document.querySelectorAll('.nav-btn');
+        this.elements.tabContents = document.querySelectorAll('.view-section');
 
         // 点名页面
         this.elements.rollBtn = document.getElementById('roll-btn');
@@ -213,15 +213,17 @@ class RollCallApp {
         // 标签页切换
         this.elements.tabs.forEach(tab => {
             tab.addEventListener('click', (e) => {
-                this.switchTab(e.target.dataset.tab);
+                this.switchTab(e.currentTarget.dataset.tab);
             });
         });
 
         // 点名按钮
         this.elements.rollBtn.addEventListener('click', (e) => {
+            // 防止重复点击
+            if (this.elements.rollBtn.disabled) return;
             this.handleRollCall();
             // 移除按钮焦点,防止按钮在点击后保持焦点状态导致样式异常
-            e.target.blur();
+            this.elements.rollBtn.blur();
         });
 
         // 快捷键支持：空格键开始点名
@@ -266,6 +268,14 @@ class RollCallApp {
         this.elements.exportStatsBtn.addEventListener('click', () => {
             this.handleExportStats();
         });
+
+        // 统计搜索功能
+        const statsSearchInput = document.getElementById('stats-search');
+        if (statsSearchInput) {
+            statsSearchInput.addEventListener('input', () => {
+                this.updateStatistics();
+            });
+        }
 
         // 弹窗
         this.elements.addStudentForm.addEventListener('submit', (e) => {
@@ -421,38 +431,25 @@ class RollCallApp {
                 this.updateUI();
             }
 
-            // 动画完成后适时恢复按钮可用
+            // 动画完成后立即恢复按钮可用
             setTimeout(() => {
                 this.enableRollButton();
-            }, 900);
+            }, 100);
         });
     }
 
     /**
-     * 恢复按钮状态（兼容iOS Safari）
+     * 恢复按钮状态
      */
     enableRollButton() {
         const btn = this.elements.rollBtn;
 
-        // 移除禁用状态
+        // 简单直接地恢复按钮状态
         btn.disabled = false;
         btn.classList.remove('btn-disabled');
 
-        // 强制移除所有可能的内联样式
-        btn.style.opacity = '';
-        btn.style.cursor = '';
-        btn.style.pointerEvents = '';
-
-        // 强制重绘（iOS Safari需要）
-        void btn.offsetHeight;
-
-        // 重新应用正常样式
-        btn.style.opacity = '1';
-
-        // 再次强制重绘
-        requestAnimationFrame(() => {
-            btn.style.opacity = '';
-        });
+        // 清除所有可能的内联样式
+        btn.removeAttribute('style');
     }
 
     /**
@@ -522,7 +519,7 @@ class RollCallApp {
      * 创建粒子爆炸效果
      */
     createParticleExplosion() {
-        const resultDisplay = document.querySelector('.result-display');
+        const resultDisplay = document.querySelector('.roll-display-area');
         const colors = ['#667eea', '#764ba2', '#f093fb', '#4facfe', '#00f2fe', '#43e97b'];
 
         // 创建30个粒子
@@ -780,7 +777,27 @@ class RollCallApp {
             return;
         }
 
-        const statsHTML = stats.students.map((student, index) => `
+        // 获取搜索关键词
+        const searchInput = document.getElementById('stats-search');
+        const searchTerm = searchInput ? searchInput.value.trim().toLowerCase() : '';
+
+        // 过滤学生列表
+        let filteredStudents = stats.students;
+        if (searchTerm) {
+            filteredStudents = stats.students.filter(student =>
+                student.name.toLowerCase().includes(searchTerm) ||
+                String(student.seat).includes(searchTerm)
+            );
+        }
+
+        if (filteredStudents.length === 0) {
+            this.elements.statsGrid.innerHTML = `
+                <div class="empty-message">未找到匹配的学生</div>
+            `;
+            return;
+        }
+
+        const statsHTML = filteredStudents.map((student, index) => `
             <div class="stat-item-card">
                 <div class="stat-item-header">
                     <div class="stat-seat">座位号：${student.seat}</div>
@@ -792,13 +809,13 @@ class RollCallApp {
                 <div class="stat-item-footer">
                     <div class="stat-last-call">
                         最后点名：${student.lastCall ?
-                            new Date(student.lastCall).toLocaleString('zh-CN', {
-                                year: 'numeric',
-                                month: '2-digit',
-                                day: '2-digit',
-                                hour: '2-digit',
-                                minute: '2-digit'
-                            }) : '从未被点'}
+                new Date(student.lastCall).toLocaleString('zh-CN', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                }) : '从未被点'}
                     </div>
                 </div>
             </div>
