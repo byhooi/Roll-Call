@@ -830,6 +830,91 @@ body {
     .result-box {
         font-size: 3rem;
     }
+
+    /* 统计页面移动端优化 */
+    .stats-overview {
+        grid-template-columns: 1fr;
+        /* 概览卡片单列显示 */
+        gap: var(--spacing-sm);
+    }
+
+    .stat-item {
+        padding: var(--spacing-sm);
+    }
+
+    /* 详细记录卡片头部优化 */
+    .chart-card .card-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: var(--spacing-sm);
+    }
+
+    .chart-card .card-header h2 {
+        font-size: 1.2rem;
+        text-align: center;
+    }
+
+    .chart-card .header-actions {
+        flex-direction: column;
+        gap: var(--spacing-xs);
+    }
+
+    .chart-card .search-input {
+        width: 100%;
+    }
+
+    .chart-card .search-input:focus {
+        width: 100%;
+    }
+
+    .chart-card .header-actions .sm-btn {
+        width: 100%;
+        text-align: center;
+        padding: 8px 12px;
+    }
+
+    /* 详细记录卡片网格优化 - 单列显示 */
+    .stats-grid-container {
+        grid-template-columns: 1fr;
+        padding: var(--spacing-sm);
+        gap: var(--spacing-sm);
+    }
+
+    /* 单个学生统计卡片优化 */
+    .stat-item-card {
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: center;
+        padding: var(--spacing-sm);
+    }
+
+    .stat-item-header {
+        width: 100%;
+        margin-bottom: 4px;
+    }
+
+    .stat-item-body {
+        flex: 1;
+        text-align: left;
+        padding: 4px 0;
+    }
+
+    .stat-name {
+        font-size: 1.1rem;
+    }
+
+    .stat-item-footer {
+        width: 100%;
+        text-align: left;
+        padding-top: 6px;
+    }
+
+    /* 图表卡片高度自适应 */
+    .chart-card {
+        height: auto;
+        min-height: 300px;
+        max-height: calc(100vh - 280px);
+    }
 }
 
 /* =========================================
