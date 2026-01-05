@@ -6,7 +6,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 这是一个网页版班级随机点名系统，采用纯前端实现，具有公平随机点名、数据统计、Excel导入导出等功能。所有数据存储在浏览器的LocalStorage中，无需后端服务器。适用于各类教学场景。
 
-## 快速开始
+## 开发环境
+
+**这是一个纯静态前端项目，无需构建、编译或测试流程。**
 
 ### 运行项目
 ```bash
@@ -14,6 +16,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 # 方式2：使用本地服务器
 python -m http.server 8000  # 然后访问 http://localhost:8000
 ```
+
+### 浏览器兼容性
+- Chrome 90+（推荐）
+- Edge 90+
+- Firefox 88+
+- Safari 14+
+- 移动端浏览器（iOS Safari、Chrome Mobile）
+
+**注意事项**：
+- 浏览器隐私模式（无痕浏览）下，LocalStorage 会在关闭标签时清空
+- 多标签页同时操作可能导致数据不一致，建议仅在一个标签页使用
+- LocalStorage 容量限制通常为 5-10MB
 
 ### 核心依赖
 - **SheetJS (xlsx.js)**: 通过CDN引入 `https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js`
@@ -209,12 +223,40 @@ StorageManager维护两个Map索引：
 4. **更新界面显示**：修改 `updateUI()` 或相关的 `update*Tab()` 方法
 
 ### 调试数据问题
+在浏览器开发者工具的控制台中执行以下命令：
+
+**查看数据**：
 ```javascript
-// 在浏览器控制台执行：
-storage.getAllData()              // 查看完整数据
-storage.getBackupInfo()           // 查看备份状态
-storage.restoreAutoBackup()       // 恢复备份
-algorithm.previewNextCall()       // 预览下次可能点到的学生
+storage.getAllData()              // 查看完整数据（students、callHistory、stats）
+storage.getStudents()             // 仅查看学生列表
+storage.getCallHistory()          // 仅查看点名历史记录
+storage.getStats()                // 仅查看统计信息
+algorithm.getStudentStats()       // 查看详细统计（含平均次数、分布等）
+```
+
+**预览和调试**：
+```javascript
+algorithm.previewNextCall()       // 预览下次可能被点到的学生集合
+storage.studentIndex              // 查看按ID索引的学生Map
+storage.seatIndex                 // 查看按座位号索引的学生Map
+```
+
+**备份和恢复**：
+```javascript
+storage.getBackupInfo()           // 查看备份状态和时间戳
+storage.restoreAutoBackup()       // 从自动备份恢复数据
+storage.createBackup()            // 手动创建备份
+storage.disableAutoBackup()       // 禁用自动备份
+storage.enableAutoBackup(5)       // 启用自动备份（间隔5分钟）
+```
+
+**数据操作**：
+```javascript
+// 修改学生数据后必须调用以重建索引
+storage.updateIndexes(storage.getStudents())
+
+// 重置统计周期（清空所有点名次数和历史记录）
+algorithm.resetAllCallCounts()
 ```
 
 ### 修改点名算法
