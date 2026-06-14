@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+本文件为 Claude Code (claude.ai/code) 在本仓库中工作时提供项目说明。
 
 ## 项目概述
 
@@ -16,6 +16,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 # 方式2：使用本地服务器
 python -m http.server 8000  # 然后访问 http://localhost:8000
 ```
+
+### 部署环境
+
+项目已从 GitHub Pages 迁移到 Cloudflare Pages。当前线上访问地址为 `https://rc.byhooi.tk`，自定义域名在 Cloudflare Pages 控制台中绑定和管理。
+
+Cloudflare Pages 配置保持静态站点模式：
+
+- 框架预设：无
+- 构建命令：留空
+- 发布目录：仓库根目录（包含 `index.html` 的目录）
+- 环境变量：无
+
+仓库根目录的 `CNAME` 文件是迁移前 GitHub Pages 使用的域名记录，不参与 Cloudflare Pages 的域名配置。后续修改部署说明时，同步更新 `README.md` 与 `AGENTS.md`。
 
 ### 浏览器兼容性
 - Chrome 90+（推荐）

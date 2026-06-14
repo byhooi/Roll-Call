@@ -50,6 +50,22 @@ python -m http.server 8000
 # 然后在浏览器访问 http://localhost:8000
 ```
 
+### 在线部署
+
+项目已从 GitHub Pages 迁移到 Cloudflare Pages，当前线上访问地址为：
+
+- https://rc.byhooi.tk
+
+Cloudflare Pages 部署配置：
+
+- 框架预设：无，按静态站点处理
+- 构建命令：留空
+- 发布目录：仓库根目录，即包含 `index.html` 的目录
+- 环境变量：无
+- 自定义域名：在 Cloudflare Pages 控制台中绑定和管理
+
+仓库中的 `CNAME` 文件是迁移前 GitHub Pages 使用的域名记录，不参与 Cloudflare Pages 的域名配置。
+
 ### 基本使用流程
 
 #### 1. 导入学生名单
@@ -127,6 +143,7 @@ A: 当前版本为单班级设计。如需多班级，可以：
 - **数据存储**：浏览器 LocalStorage
 - **Excel 处理**：SheetJS (xlsx.js)
 - **无后端依赖**：纯静态前端，离线可用
+- **部署平台**：Cloudflare Pages
 
 ## 📂 项目结构
 
@@ -180,4 +197,4 @@ storage.restoreAutoBackup()
 
 ---
 
-**版本**: v1.0.0 | **更新时间**: 2025-01
+**版本**: v1.0.0 | **更新时间**: 2026-06

@@ -28,6 +28,14 @@ python -m http.server 8000
 
 目前没有 `npm test`、`npm run build` 或打包配置。提交前至少在 Chrome 或 Edge 中完成主要流程验证。
 
+## 部署说明
+
+项目已从 GitHub Pages 迁移到 Cloudflare Pages。当前线上访问地址为 `https://rc.byhooi.tk`，自定义域名在 Cloudflare Pages 控制台中绑定和管理。
+
+Cloudflare Pages 按静态站点部署：框架预设为无，构建命令留空，发布目录指向仓库根目录（包含 `index.html` 的目录），无需环境变量。
+
+仓库中的 `CNAME` 文件是迁移前 GitHub Pages 使用的域名记录，不参与 Cloudflare Pages 的域名配置。后续修改部署说明时，请同步更新 `README.md` 与 `CLAUDE.md`。
+
 ## 编码风格与命名约定
 
 JavaScript 与 CSS 使用 4 空格缩进。JavaScript 类名使用 `PascalCase`，变量、函数与方法使用 `camelCase`，常量或配置应集中定义，避免散落魔法值。CSS 继续沿用 `:root` 变量管理颜色、间距与字体，新增样式优先复用已有设计令牌。不要引入构建工具、框架或大型依赖，除非变更本身确实需要。
