@@ -4,11 +4,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>班级点名系统</title>
+    <title>班级点名系统 - 智能公平随机点名</title>
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <!-- Style -->
     <link rel="stylesheet" href="css/style.css">
 </head>
@@ -20,12 +20,13 @@
         <div class="mesh-3"></div>
     </div>
 
-    <div class="app-container">
+    <div class="app-container" id="app-container">
         <header class="app-header">
             <div class="logo">
                 <span class="logo-icon">🎓</span>
                 <h1>班级点名系统</h1>
             </div>
+
             <nav class="main-nav">
                 <button class="nav-btn active" data-tab="roll-call">
                     <span class="icon">🎯</span>
@@ -40,23 +41,57 @@
                     <span>统计</span>
                 </button>
             </nav>
+
+            <div class="header-tools">
+                <button id="toggle-sound-btn" class="tool-btn active" title="点击切换音效" aria-label="音效开关">
+                    <span class="tool-icon">🔊</span>
+                    <span class="tool-text">音效</span>
+                </button>
+                <button id="toggle-voice-btn" class="tool-btn" title="点击切换姓名语音播报" aria-label="语音播报开关">
+                    <span class="tool-icon">🗣️</span>
+                    <span class="tool-text">播报</span>
+                </button>
+                <button id="toggle-theme-btn" class="tool-btn" title="切换深色/浅色高对比度主题" aria-label="切换主题">
+                    <span class="tool-icon">🌓</span>
+                    <span class="tool-text">主题</span>
+                </button>
+                <button id="toggle-fullscreen-btn" class="tool-btn" title="大屏幕全屏沉浸投影" aria-label="全屏展示">
+                    <span class="tool-icon">⛶</span>
+                    <span class="tool-text">全屏</span>
+                </button>
+            </div>
         </header>
 
         <main class="content-area">
             <!-- 点名页面 -->
             <section id="roll-call" class="view-section active">
                 <div class="glass-card main-card">
-                    <div class="roll-display-area">
-                        <div class="status-badge" id="roll-status">Ready to start</div>
+                    <!-- 连抽模式选择器 -->
+                    <div class="roll-mode-bar">
+                        <span class="mode-label">抽取模式：</span>
+                        <div class="mode-chips" id="mode-chips">
+                            <button class="mode-chip active" data-count="1">单人 (1人)</button>
+                            <button class="mode-chip" data-count="2">双人组 (2人)</button>
+                            <button class="mode-chip" data-count="3">三人组 (3人)</button>
+                            <button class="mode-chip" data-count="5">五人连抽 (5人)</button>
+                        </div>
+                    </div>
+
+                    <div class="roll-display-area" id="roll-display-area">
+                        <div class="status-badge" id="roll-status">准备就绪</div>
                         <div id="selected-student" class="result-box">
                             <span class="placeholder-text">等待点名...</span>
                         </div>
                     </div>
+
                     <div class="control-area">
-                        <button id="roll-btn" class="action-btn primary-btn pulse-glow">
+                        <button id="roll-btn" class="action-btn primary-btn pulse-glow" aria-label="开始随机点名">
                             <span class="btn-text">开始随机点名</span>
                             <div class="btn-bg"></div>
                         </button>
+                        <div class="keyboard-hint">
+                            <kbd>Space</kbd> 按空格键快速点名
+                        </div>
                     </div>
                     <div id="student-info" class="student-meta fade-in"></div>
                 </div>
@@ -68,34 +103,60 @@
                     <div class="card-header">
                         <h2>学生名册 <span class="badge" id="student-count">0</span></h2>
                         <div class="header-actions">
-                            <button id="import-excel-btn" class="icon-btn" title="导入 Excel">
+                            <button id="import-excel-btn" class="icon-btn" title="导入 Excel 文件">
                                 📤 导入
                             </button>
-                            <button id="add-student-btn" class="icon-btn" title="手动添加">
+                            <button id="download-template-btn" class="icon-btn" title="下载标准导入模板">
+                                📥 模板
+                            </button>
+                            <button id="load-sample-btn" class="icon-btn" title="一键填入演示学生名单">
+                                ✨ 示例
+                            </button>
+                            <button id="add-student-btn" class="icon-btn" title="手动添加新学生">
                                 ➕ 添加
                             </button>
-                            <button id="clear-data-btn" class="icon-btn danger" title="清空数据">
+                            <button id="clear-data-btn" class="icon-btn danger" title="清空所有学生与历史">
                                 🗑️ 清空
                             </button>
                             <input type="file" id="import-excel" accept=".xlsx,.xls" style="display:none;">
                         </div>
                     </div>
 
-                    <div class="table-container">
+                    <!-- 搜索与排序工具栏 -->
+                    <div class="table-toolbar">
+                        <div class="search-box">
+                            <span class="search-icon">🔍</span>
+                            <input type="text" id="students-search" class="search-input-modern" placeholder="搜索姓名或座位号...">
+                        </div>
+                        <div class="sort-box">
+                            <label for="students-sort">排序方式：</label>
+                            <select id="students-sort" class="sort-select">
+                                <option value="seat-asc">座位号 (升序)</option>
+                                <option value="seat-desc">座位号 (降序)</option>
+                                <option value="name-asc">姓名字母/首字</option>
+                                <option value="calls-desc">被点次数 (多到少)</option>
+                                <option value="calls-asc">被点次数 (少到多)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="table-container" id="table-drop-zone">
                         <table id="students-table" class="modern-table">
                             <thead>
                                 <tr>
                                     <th>座位号</th>
                                     <th>姓名</th>
+                                    <th>被点次数</th>
+                                    <th>最后点名时间</th>
                                     <th>操作</th>
                                 </tr>
                             </thead>
                             <tbody id="students-tbody">
                                 <tr>
-                                    <td colspan="3" class="empty-state">
+                                    <td colspan="5" class="empty-state">
                                         <div class="empty-content">
                                             <span class="empty-icon">📂</span>
-                                            <p>暂无数据，请先导入</p>
+                                            <p>暂无数据，请先导入或点击上方“示例”体验</p>
                                         </div>
                                     </td>
                                 </tr>
@@ -129,42 +190,91 @@
                             <p id="avg-calls" class="stat-value">0</p>
                         </div>
                     </div>
+                    <div class="glass-card stat-item">
+                        <div class="stat-icon teal">🎯</div>
+                        <div class="stat-info">
+                            <h3>点名覆盖率</h3>
+                            <p id="coverage-rate" class="stat-value">0%</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 分布概览条 -->
+                <div class="glass-card distribution-card">
+                    <div class="distribution-header">
+                        <h3>📊 点名频次分布分布情况</h3>
+                        <span class="distribution-tip">展示全班各被点次数的人数占比</span>
+                    </div>
+                    <div id="distribution-bar" class="distribution-bars">
+                        <span class="empty-subtext">暂无分布数据</span>
+                    </div>
                 </div>
 
                 <div class="glass-card chart-card">
                     <div class="card-header">
-                        <h2>详细记录</h2>
+                        <div class="stats-view-switch">
+                            <button id="stats-view-cards" class="sm-tab-btn active">学生卡片</button>
+                            <button id="stats-view-history" class="sm-tab-btn">最近点名流水</button>
+                        </div>
                         <div class="header-actions">
                             <input type="text" id="stats-search" class="search-input" placeholder="🔍 搜索姓名或座位号...">
                             <button id="export-stats-btn" class="sm-btn">导出报表</button>
+                            <button id="export-backup-btn" class="sm-btn">备份 JSON</button>
                             <button id="reset-stats-btn" class="sm-btn danger-text">重置周期</button>
                         </div>
                     </div>
                     <div id="stats-grid" class="stats-grid-container">
                         <div class="empty-state">暂无统计数据</div>
                     </div>
+                    <div id="stats-history-list" class="stats-history-container" style="display: none;">
+                        <div class="empty-state">暂无点名历史流水</div>
+                    </div>
                 </div>
             </section>
         </main>
 
-        <!-- Modal -->
+        <!-- 添加学生弹窗 -->
         <div id="add-student-modal" class="modal-overlay">
             <div class="glass-modal">
                 <div class="modal-header">
                     <h3>添加新学生</h3>
-                    <button class="close-modal" id="cancel-add-btn">×</button>
+                    <button class="close-modal" id="cancel-add-btn" aria-label="关闭">×</button>
                 </div>
                 <form id="add-student-form">
                     <div class="form-group">
-                        <label>姓名</label>
+                        <label for="student-name">姓名</label>
                         <input type="text" id="student-name" required placeholder="请输入姓名">
                     </div>
                     <div class="form-group">
-                        <label>座位号</label>
+                        <label for="student-seat">座位号</label>
                         <input type="number" id="student-seat" required min="1" placeholder="例如: 101">
                     </div>
                     <div class="modal-footer">
                         <button type="submit" class="action-btn primary-btn full-width">确认添加</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- 编辑学生弹窗 -->
+        <div id="edit-student-modal" class="modal-overlay">
+            <div class="glass-modal">
+                <div class="modal-header">
+                    <h3>编辑学生信息</h3>
+                    <button class="close-modal" id="cancel-edit-btn" aria-label="关闭">×</button>
+                </div>
+                <form id="edit-student-form">
+                    <input type="hidden" id="edit-student-id">
+                    <div class="form-group">
+                        <label for="edit-student-name">姓名</label>
+                        <input type="text" id="edit-student-name" required placeholder="请输入修改后的姓名">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-student-seat">座位号</label>
+                        <input type="number" id="edit-student-seat" required min="1" placeholder="例如: 101">
+                    </div>
+                    <div class="modal-footer">
+                        <button type="submit" class="action-btn primary-btn full-width">保存修改</button>
                     </div>
                 </form>
             </div>

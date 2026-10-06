@@ -94,6 +94,10 @@ class StorageManager {
             if (!data.students.length && !data.callHistory.length) {
                 return;
             }
+            const signature = JSON.stringify(data);
+            if (signature === this.lastBackupSignature) {
+                return;
+            }
             const backupData = {
                 data,
                 timestamp: new Date().toISOString(),
@@ -101,12 +105,8 @@ class StorageManager {
             };
 
             const payload = JSON.stringify(backupData);
-            if (payload === this.lastBackupSignature) {
-                return;
-            }
-
             localStorage.setItem(this.backupKey, payload);
-            this.lastBackupSignature = payload;
+            this.lastBackupSignature = signature;
             console.log('自动备份创建成功');
         } catch (error) {
             if (this.isQuotaExceeded(error)) {
@@ -219,6 +219,7 @@ class StorageManager {
                 console.error('获取数据失败:', error);
                 this.dataCache = this.createDefaultData();
             }
+            this.updateIndexes(this.dataCache.students);
         }
         return this.dataCache;
     }
@@ -237,7 +238,7 @@ class StorageManager {
         try {
             localStorage.setItem(this.storageKey, payload);
             this.dataCache = data;
-            this.lastBackupSignature = null;
+            this.updateIndexes(data.students);
             return true;
         } catch (error) {
             if (this.isQuotaExceeded(error)) {
@@ -249,7 +250,7 @@ class StorageManager {
                     try {
                         localStorage.setItem(this.storageKey, payload);
                         this.dataCache = data;
-                        this.lastBackupSignature = null;
+                        this.updateIndexes(data.students);
                         return true;
                     } catch (retryError) {
                         console.error('清理备份后仍无法保存数据:', retryError);
@@ -300,9 +301,16 @@ class StorageManager {
      */
     addStudent(student) {
         const data = this.getAllData();
+        const name = String(student.name || '').trim();
+        if (!name || !Number.isSafeInteger(student.seat) || student.seat <= 0) {
+            throw new Error('姓名不能为空，座位号必须为正整数');
+        }
+        if (data.students.some(item => item.seat === student.seat || item.name === name)) {
+            throw new Error('姓名或座位号已存在');
+        }
         const newStudent = {
             id: this.generateUniqueId(),
-            name: student.name,
+            name,
             seat: student.seat,
             callCount: 0,
             lastCall: null
@@ -323,6 +331,39 @@ class StorageManager {
         }
 
         data.students[index] = { ...data.students[index], ...updates };
+        this.updateIndexes(data.students);
+        return this.saveAllData(data);
+    }
+
+    /**
+     * 编辑学生信息（严格校验姓名与座位号重复）
+     */
+    editStudent(studentId, { name, seat }) {
+        const data = this.getAllData();
+        const index = data.students.findIndex(student => student.id === studentId);
+        if (index === -1) {
+            throw new Error('学生不存在');
+        }
+
+        const trimmedName = String(name || '').trim();
+        const parsedSeat = Number(seat);
+
+        if (!trimmedName || !Number.isSafeInteger(parsedSeat) || parsedSeat <= 0) {
+            throw new Error('姓名不能为空，座位号必须为正整数');
+        }
+
+        const hasConflict = data.students.some(item =>
+            item.id !== studentId && (item.seat === parsedSeat || item.name === trimmedName)
+        );
+        if (hasConflict) {
+            throw new Error('修改后的姓名或座位号已被其他学生占用');
+        }
+
+        data.students[index] = {
+            ...data.students[index],
+            name: trimmedName,
+            seat: parsedSeat
+        };
         this.updateIndexes(data.students);
         return this.saveAllData(data);
     }
@@ -431,10 +472,12 @@ class StorageManager {
      * 快速获取学生信息
      */
     getStudentById(id) {
+        this.getAllData();
         return this.studentIndex.get(id) || null;
     }
 
     getStudentBySeat(seat) {
+        this.getAllData();
         return this.seatIndex.get(seat) || null;
     }
 

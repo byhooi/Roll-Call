@@ -380,6 +380,51 @@ class ExcelManager {
             .join(', ');
         return entries || '无数据';
     }
+
+    /**
+     * 下载学生名单导入模板
+     */
+    downloadTemplate() {
+        if (typeof XLSX === 'undefined') {
+            throw new Error('Excel 导出组件未加载');
+        }
+
+        const templateData = [
+            { '座位号': 1, '姓名': '张伟' },
+            { '座位号': 2, '姓名': '王芳' },
+            { '座位号': 3, '姓名': '李娜' },
+            { '座位号': 4, '姓名': '刘洋' },
+            { '座位号': 5, '姓名': '陈杰' }
+        ];
+
+        const worksheet = XLSX.utils.json_to_sheet(templateData);
+        // 设置列宽
+        worksheet['!cols'] = [{ wch: 12 }, { wch: 16 }];
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, '学生名册模板');
+
+        XLSX.writeFile(workbook, '学生名单导入模板.xlsx');
+        return true;
+    }
+
+    /**
+     * 获取示范学生名单（用于无数据时一键体验）
+     */
+    getSampleStudents() {
+        const names = [
+            '张伟', '王芳', '李娜', '刘洋', '陈杰', '杨敏', '赵强', '黄艳', '周磊', '吴霞',
+            '徐磊', '孙丽', '朱浩', '高静', '林峰', '何雪', '郭涛', '马超', '罗丹', '梁宇',
+            '宋洁', '郑毅', '谢欣', '韩冰', '唐敏', '冯晨', '于亮', '董静', '萧然', '程远'
+        ];
+
+        return names.map((name, index) => ({
+            id: this.storage.generateUniqueId(),
+            name,
+            seat: index + 1,
+            callCount: 0,
+            lastCall: null
+        }));
+    }
 }
 
 // 创建全局实例
