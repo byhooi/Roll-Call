@@ -56,19 +56,17 @@ python -m http.server 8000
 
 ### 在线部署
 
-项目已从 GitHub Pages 迁移到 Cloudflare Pages，当前线上访问地址为：
+项目当前托管在 GitHub Pages，线上访问地址为：
 
-- https://rc.byhooi.tk
+- https://dm.468024.xyz
 
-Cloudflare Pages 部署配置：
+部署说明：
 
-- 框架预设：无，按静态站点处理
-- 构建命令：留空
-- 发布目录：仓库根目录，即包含 `index.html` 的目录
-- 环境变量：无
-- 自定义域名：在 Cloudflare Pages 控制台中绑定和管理
+- 站点类型：纯静态前端，无需项目构建步骤或环境变量
+- 站点文件：位于仓库根目录，入口为 `index.html`
+- 自定义域名：`dm.468024.xyz`，与仓库根目录的 `CNAME` 文件保持一致
 
-仓库中的 `CNAME` 文件是迁移前 GitHub Pages 使用的域名记录，不参与 Cloudflare Pages 的域名配置。
+后续修改域名或部署方式时，请同步更新 `CNAME` 及 `README.md`、`CLAUDE.md`、`AGENTS.md` 中的相关说明。
 
 ### 基本使用流程
 
@@ -147,7 +145,7 @@ A: 当前版本为单班级设计。如需多班级，可以：
 - **数据存储**：浏览器 LocalStorage
 - **Excel 处理**：SheetJS (xlsx.js)
 - **无后端依赖**：纯静态前端，离线可用
-- **部署平台**：Cloudflare Pages
+- **部署平台**：GitHub Pages
 
 ## 📂 项目结构
 

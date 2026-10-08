@@ -29,16 +29,15 @@ python -m http.server 8000  # 然后访问 http://localhost:8000
 
 ### 部署环境
 
-项目已从 GitHub Pages 迁移到 Cloudflare Pages。当前线上访问地址为 `https://rc.byhooi.tk`，自定义域名在 Cloudflare Pages 控制台中绑定和管理。
+项目当前托管在 GitHub Pages，线上访问地址为 `https://dm.468024.xyz`。
 
-Cloudflare Pages 配置保持静态站点模式：
+部署说明：
 
-- 框架预设：无
-- 构建命令：留空
-- 发布目录：仓库根目录（包含 `index.html` 的目录）
-- 环境变量：无
+- 站点类型：纯静态前端，无需项目构建步骤或环境变量
+- 站点文件：位于仓库根目录，入口为 `index.html`
+- 自定义域名：`dm.468024.xyz`，与仓库根目录的 `CNAME` 文件保持一致
 
-仓库根目录的 `CNAME` 文件是迁移前 GitHub Pages 使用的域名记录，不参与 Cloudflare Pages 的域名配置。后续修改部署说明时，同步更新 `README.md` 与 `AGENTS.md`。
+后续修改域名或部署方式时，请同步更新 `CNAME` 及 `README.md`、`CLAUDE.md`、`AGENTS.md` 中的相关说明。
 
 ### 浏览器兼容性
 - Chrome 90+（推荐）
