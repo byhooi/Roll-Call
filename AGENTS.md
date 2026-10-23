@@ -7,9 +7,9 @@
 - `js/app.js`：页面交互、弹窗、通知与事件绑定。
 - `js/algorithm.js`：公平点名算法与统计更新逻辑。
 - `js/storage.js`：LocalStorage 数据读写、备份与恢复。
-- `js/excel.js`：Excel 导入导出相关工具。
+- `js/excel.js`：Excel 导入导出相关工具（含 xlsx 按需加载）。
 
-当前没有独立的 `tests/` 目录；新增测试时建议放在 `tests/`，并按模块命名，例如 `algorithm.test.js`。
+测试位于 `tests/`，按模块命名并使用 `.cjs` 后缀，例如 `algorithm.test.cjs`。
 
 ## 构建、测试与本地开发命令
 
@@ -26,7 +26,14 @@ python -m http.server 8000
 # 访问 http://localhost:8000
 ```
 
-目前没有 `npm test`、`npm run build` 或打包配置。提交前至少在 Chrome 或 Edge 中完成主要流程验证。
+目前没有构建流程或打包配置。自动化测试无需安装依赖：
+
+```bash
+npm test
+# 等价于 node --test --test-timeout=20000 tests/*.test.cjs
+```
+
+提交前至少在 Chrome 或 Edge 中完成主要流程验证。可选的真浏览器冒烟脚本：先启动静态服务器，再运行 `node tests/manual/browser-check.cjs`（自动探测本机 Edge/Chrome，可用 `EDGE_PATH` 覆盖）。
 
 ## 部署说明
 
@@ -42,7 +49,7 @@ JavaScript 与 CSS 使用 4 空格缩进。JavaScript 类名使用 `PascalCase`�
 
 ## 测试指南
 
-当前以手动回归为主。修改前端逻辑后，请验证：
+当前以自动化测试配合手动回归。修改前端逻辑后，请验证：
 
 - 学生名单导入、手动新增、删除与重复校验。
 - 点名按钮与空格快捷键。
@@ -50,7 +57,15 @@ JavaScript 与 CSS 使用 4 空格缩进。JavaScript 类名使用 `PascalCase`�
 - 刷新页面后的 LocalStorage 持久化。
 - 桌面端与移动端布局。
 
-新增自动化测试时，优先覆盖 `algorithm.js` 和 `storage.js` 的纯逻辑。
+新增自动化测试时，优先覆盖 `algorithm.js` 和 `storage.js` 的纯逻辑，其次覆盖 `excel.js` 的校验与按需加载，以及 `app.js` 的渲染与状态机。
+
+## 前端性能约定
+
+- xlsx 必须通过 `excel.js` 的 `ensureXlsx()` 按需加载，不得重新放回首屏同步脚本。
+- 列表渲染使用 `createElement` + `DocumentFragment` + `replaceChildren`，不要拼接 `innerHTML`。
+- 点名滚动动画只创建一次节点，之后更新 `textContent`，禁止每帧重建 DOM。
+- 数据变更统一调用 `refreshUI()`，隐藏标签页只标记 `state.dirtyTabs`。
+- 新动画需同时考虑 `prefers-reduced-motion`，JS 与 CSS 两侧都要有兜底。
 
 ## 提交与 Pull Request 规范
 

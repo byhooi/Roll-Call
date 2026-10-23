@@ -10,7 +10,39 @@
 
 **这是一个纯静态前端项目，无需构建或编译。**
 
-自动化回归测试使用 Node.js 内置运行器：`node --test tests/core.test.cjs`，无需安装依赖。浏览器交互、响应式布局和 Excel 流程仍需手动验证。
+自动化回归测试使用 Node.js 内置运行器，无需安装任何依赖：
+
+```bash
+npm test                                                # 等价于下一条
+node --test --test-timeout=20000 tests/*.test.cjs        # 运行全部测试
+```
+
+> 注意：`node --test tests/`（传目录）在部分 Node 版本上会报错，请使用上面的 glob 写法。
+
+测试文件说明：
+
+- `tests/core.test.cjs`：公平点名、1000 条历史上限、存储失败一致性、快捷键防重入。
+- `tests/features.test.cjs`：编辑学生、多人点名、示例名单。
+- `tests/ui-errors.test.cjs`：导入确认流程、点名状态机、ARIA 忙碌标记、按需渲染。
+- `tests/excel-loader.test.cjs`：xlsx 按需加载、加载失败重试、导入校验分级。
+- `tests/animation.test.cjs`：滚动动画节点复用、减少动效、粒子批量插入。
+
+`tests/manual/browser-check.cjs` 是可选的真实浏览器冒烟脚本（使用本机 Edge/Chrome 的无头模式 + DevTools 协议），需要先启动静态服务器再运行：
+
+```bash
+python -m http.server 8123
+node tests/manual/browser-check.cjs
+```
+
+脚本会自动探测各平台的 Edge/Chrome 常见安装位置，也可用 `EDGE_PATH` 指定浏览器可执行文件，用 `CHECK_URL` 指定被测地址。
+
+### 前端性能约定
+
+- **xlsx 不在首屏加载**：`excel.js` 的 `ensureXlsx()` 在真正导入/导出时才注入 CDN 脚本，新增 Excel 相关方法时必须先 `await ensureXlsx()`。
+- **列表渲染不使用 innerHTML 拼接**：管理表格、统计卡片、点名流水、分布条均使用 `createElement` + `DocumentFragment` + `replaceChildren`，文本一律走 `textContent`。
+- **点名滚动动画复用节点**：`startRollingAnimation()` 只创建一次骨架，之后仅更新 `textContent`，并用 `requestAnimationFrame` 按时间驱动。
+- **隐藏标签页惰性渲染**：数据变更统一走 `refreshUI()`，非当前标签页只标记 `state.dirtyTabs`，切回时再渲染。
+- **尊重减少动效**：`prefersReducedMotion()` 为真时跳过滚动帧与粒子特效；CSS 侧在 `@media (prefers-reduced-motion: reduce)` 中兜底。
 
 ### 数据一致性约定
 
@@ -52,33 +84,40 @@ python -m http.server 8000  # 然后访问 http://localhost:8000
 - LocalStorage 容量限制通常为 5-10MB
 
 ### 核心依赖
-- **SheetJS (xlsx.js)**: 通过CDN引入 `https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js`
-- 无其他外部依赖，纯原生JavaScript实现
+- **SheetJS (xlsx.js)**: 通过 CDN 引入 `https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js`，**首屏不加载**，由 `excel.js` 的 `ensureXlsx()` 在首次导入/导出时按需注入
+- 无其他外部依赖，纯原生 JavaScript 实现；字体使用系统字体栈，不再请求 Google Fonts
 
 ## 项目架构
 
 ### 文件结构
 ```
 Roll Call/
-├── index.html           # 主页面（包含内联样式和结构）
+├── index.html           # 主页面结构（无内联样式，脚本使用 defer）
+├── package.json         # 仅提供 npm test / npm run serve，无依赖、无构建
 ├── css/
-│   └── style.css       # 全局样式
-└── js/
-    ├── app.js          # UI交互层（RollCallApp + NotificationSystem）
-    ├── storage.js      # 数据持久层（StorageManager）
-    ├── algorithm.js    # 业务逻辑层（RollCallAlgorithm）
-    └── excel.js        # 工具层（ExcelManager）
+│   └── style.css       # 全局样式（设计令牌、主题、响应式、减少动效）
+├── js/
+│   ├── app.js          # UI交互层（RollCallApp + NotificationSystem + DialogService）
+│   ├── storage.js      # 数据持久层（StorageManager）
+│   ├── algorithm.js    # 业务逻辑层（RollCallAlgorithm）
+│   └── excel.js        # 工具层（ExcelManager + ensureXlsx 按需加载）
+└── tests/
+    ├── *.test.cjs      # node --test 自动化回归
+    └── manual/browser-check.cjs  # 可选的无头浏览器冒烟脚本
 ```
 
 ### 模块职责
 
 **app.js (UI层)**
 - `RollCallApp`: 主应用类，管理所有UI交互和页面状态
-- `NotificationSystem`: Toast通知系统，提供 `success/error/info` 三种提示
+- `NotificationSystem`: Toast通知系统，提供 `success/error/info` 三种提示，并同步写入 ARIA live 区域
+- `DialogService`: 自定义确认弹窗（替代原生 `confirm()`），带焦点陷阱与焦点还原
 - 关键方法：
   - `handleRollCall()` - 执行点名操作
+  - `startRollingAnimation(count, callback)` - 滚动动画，复用节点 + `requestAnimationFrame`
   - `handleImportExcel(file)` - 处理Excel导入（含数据验证和回滚）
-  - `updateUI()` / `updateCurrentTab()` - 刷新界面显示
+  - `refreshUI()` - 数据变更后的统一刷新入口（隐藏标签页惰性渲染）
+  - `switchTab()` / `updateCurrentTab()` - 标签页切换与刷新
 
 **storage.js (数据层)**
 - `StorageManager`: 封装LocalStorage操作，提供索引优化和自动备份
@@ -102,7 +141,7 @@ Roll Call/
   2. `getRandomStudentFromGroup()` - 从群组中随机选一个
   3. `rollCall()` - 执行点名并更新学生的 `callCount` 和 `lastCall`
 - 关键方法：
-  - `previewNextCall()` - ��览下次可能被点到的学生集合（用于调试）
+  - `previewNextCall()` - 预览下次可能被点到的学生集合（用于调试）
   - `getStudentStats()` - 返回完整统计信息（总次数、平均次数、分布等）
   - `resetAllCallCounts()` - 重置统计周期（清空callCount、历史记录和stats）
 
@@ -122,7 +161,7 @@ Roll Call/
 ```
 用户操作 → RollCallApp → algorithm/storage/excel → LocalStorage
                 ↓
-            updateUI() ← 读取最新数据
+            refreshUI() → loadInitialData() + 仅刷新当前标签页
 ```
 
 ### 全局实例
@@ -229,11 +268,11 @@ StorageManager维护两个Map索引：
 
 ### 表单验证
 ```javascript
-// app.js:189-239
+// app.js:setupFormValidation()
 实时验证学生姓名和座位号：
-- 姓名：至少2个字符，边框绿色表示有效，黄色表示警告
-- 座位号：必须>0，输入0时显示黄色警告
-- 失焦时显示NotificationSystem提示
+- 姓名：至少2个字符，有效时加 .field-valid，过短时加 .field-warning
+- 座位号：必须>0，输入0时加 .field-warning
+- 状态通过 class 与 aria-invalid 表达，样式在 css/style.css 的 .field-valid / .field-warning 中统一维护
 ```
 
 ## 常见操作场景
@@ -267,7 +306,7 @@ storage.seatIndex                 // 查看按座位号索引的学生Map
 ```javascript
 storage.getBackupInfo()           // 查看备份状态和时间戳
 storage.restoreAutoBackup()       // 从自动备份恢复数据
-storage.createBackup()            // 手动创建备份
+storage.createAutoBackup()        // 立即创建一次自动备份（有变化才写）
 storage.disableAutoBackup()       // 禁用自动备份
 storage.enableAutoBackup(5)       // 启用自动备份（间隔5分钟）
 ```
@@ -306,4 +345,4 @@ XLSX.read(data, {
 3. **备份覆盖**：自动备份只保留最新一份，无历史版本
 4. **浏览器隐私模式**：无痕浏览模式下LocalStorage关闭标签即清空
 5. **Excel表头识别**：依赖 `toLowerCase().includes('姓名')` 和 `includes('座位')` 匹配，表头必须包含这些关键字
-6. **删除确认**：使用原生 `confirm()` 对话框，无法自定义样式
+6. **删除确认**：使用 `DialogService.confirm()` 自定义弹窗（已不再是原生 `confirm()`），支持 Escape 取消、Enter 确认、Tab 焦点陷阱
