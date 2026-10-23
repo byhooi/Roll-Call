@@ -2,11 +2,39 @@
  * 简单的通知系统
  */
 class NotificationSystem {
+    /** @type {HTMLElement|null} 读屏软件播报区域 */
+    static liveRegion = null;
+
+    /**
+     * 获取（必要时创建）ARIA live 容器，避免每条 toast 各自播报
+     */
+    static getLiveRegion() {
+        if (typeof document === 'undefined') return null;
+        if (this.liveRegion && this.liveRegion.isConnected) {
+            return this.liveRegion;
+        }
+        const region = document.createElement('div');
+        region.className = 'visually-hidden';
+        region.setAttribute('role', 'status');
+        region.setAttribute('aria-live', 'polite');
+        region.setAttribute('aria-atomic', 'true');
+        document.body.appendChild(region);
+        this.liveRegion = region;
+        return region;
+    }
+
     static show(message, type = 'info') {
         const toast = document.createElement('div');
         toast.className = `toast toast-${type}`;
         toast.textContent = message;
         document.body.appendChild(toast);
+
+        // 错误信息用 assertive 立即播报，其余保持 polite 以免打断
+        const region = this.getLiveRegion();
+        if (region) {
+            region.setAttribute('aria-live', type === 'error' ? 'assertive' : 'polite');
+            region.textContent = message;
+        }
 
         setTimeout(() => {
             toast.classList.add('show');
@@ -42,18 +70,30 @@ class DialogService {
         type = 'info'
     } = {}) {
         return new Promise((resolve) => {
+            // 记录打开前的焦点，关闭后还原，避免键盘用户丢失位置
+            const previouslyFocused = typeof document !== 'undefined' ? document.activeElement : null;
+
             const overlay = document.createElement('div');
             overlay.className = 'modal active confirm-modal';
             overlay.dataset.type = type;
 
             const content = document.createElement('div');
             content.className = 'modal-content confirm-content';
+            content.setAttribute('role', 'alertdialog');
+            content.setAttribute('aria-modal', 'true');
+
+            const titleId = 'confirm-title-' + Math.random().toString(36).slice(2);
+            const descId = 'confirm-desc-' + Math.random().toString(36).slice(2);
+            content.setAttribute('aria-labelledby', titleId);
+            content.setAttribute('aria-describedby', descId);
 
             const titleElement = document.createElement('h3');
+            titleElement.id = titleId;
             titleElement.textContent = title;
 
             const messageContainer = document.createElement('div');
             messageContainer.className = 'confirm-message';
+            messageContainer.id = descId;
             if (typeof message === 'string') {
                 messageContainer.innerHTML = message;
             } else if (message instanceof Node) {
@@ -87,8 +127,11 @@ class DialogService {
             document.body.appendChild(overlay);
 
             const cleanup = () => {
-                document.removeEventListener('keydown', handleKeyDown);
+                document.removeEventListener('keydown', handleKeyDown, true);
                 overlay.remove();
+                if (previouslyFocused && typeof previouslyFocused.focus === 'function') {
+                    previouslyFocused.focus();
+                }
             };
 
             const handleCancel = () => {
@@ -103,10 +146,24 @@ class DialogService {
 
             const handleKeyDown = (event) => {
                 if (event.key === 'Escape') {
+                    event.preventDefault();
                     handleCancel();
+                    return;
                 }
                 if (event.key === 'Enter') {
+                    event.preventDefault();
                     handleConfirm();
+                    return;
+                }
+                // 焦点陷阱：Tab 只在弹窗内循环
+                if (event.key === 'Tab') {
+                    const focusables = [cancelButton, confirmButton];
+                    const current = focusables.indexOf(document.activeElement);
+                    event.preventDefault();
+                    const next = event.shiftKey
+                        ? focusables[(current <= 0 ? focusables.length : current) - 1]
+                        : focusables[(current + 1) % focusables.length];
+                    next.focus();
                 }
             };
 
@@ -117,7 +174,7 @@ class DialogService {
                     handleCancel();
                 }
             });
-            document.addEventListener('keydown', handleKeyDown);
+            document.addEventListener('keydown', handleKeyDown, true);
 
             requestAnimationFrame(() => {
                 confirmButton.focus();
@@ -125,10 +182,17 @@ class DialogService {
         });
     }
 
+    /**
+     * 转义 HTML 特殊字符。
+     * 注意：列表渲染已改为 DOM 节点 + textContent，此方法仅用于确需拼接 HTML 的场景。
+     */
     static escapeHtml(text = '') {
-        const temp = document.createElement('div');
-        temp.textContent = String(text);
-        return temp.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        return String(text)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
     }
 }
 
@@ -263,10 +327,21 @@ class RollCallApp {
             rollCount: 1,
             studentSearch: '',
             studentSort: 'seat-asc',
-            statsView: 'cards' // 'cards' 或 'history'
+            statsView: 'cards', // 'cards' 或 'history'
+            // 隐藏的标签页不立即渲染，切回时再刷新
+            dirtyTabs: new Set(['students', 'statistics'])
         };
 
         this.init();
+    }
+
+    /**
+     * 用户是否开启了“减少动态效果”
+     */
+    prefersReducedMotion() {
+        return typeof window !== 'undefined'
+            && typeof window.matchMedia === 'function'
+            && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     }
 
     /**
@@ -695,38 +770,47 @@ class RollCallApp {
     }
 
     /**
-     * 设置表单验证和实时反馈
+     * 设置表单验证和实时反馈。
+     * 用 class 表达状态，主题切换与高对比度模式可直接覆盖样式。
      */
     setupFormValidation() {
         const nameInput = document.getElementById('student-name');
         const seatInput = document.getElementById('student-seat');
         if (!nameInput || !seatInput) return;
 
+        const setFieldState = (input, state, hint) => {
+            input.classList.toggle('field-valid', state === 'valid');
+            input.classList.toggle('field-warning', state === 'warning');
+            if (state === 'warning') {
+                input.title = hint;
+                input.setAttribute('aria-invalid', 'true');
+                input.setCustomValidity(hint);
+            } else {
+                input.title = '';
+                input.removeAttribute('aria-invalid');
+                input.setCustomValidity('');
+            }
+        };
+
         nameInput.addEventListener('input', (e) => {
             const value = e.target.value.trim();
             if (value.length > 0 && value.length < 2) {
-                e.target.style.borderColor = '#ffa502';
-                e.target.title = '姓名至少需要2个字符';
+                setFieldState(e.target, 'warning', '姓名至少需要2个字符');
             } else if (value.length >= 2) {
-                e.target.style.borderColor = '#2ed573';
-                e.target.title = '';
+                setFieldState(e.target, 'valid');
             } else {
-                e.target.style.borderColor = '';
-                e.target.title = '';
+                setFieldState(e.target, 'none');
             }
         });
 
         seatInput.addEventListener('input', (e) => {
             const value = parseInt(e.target.value, 10);
             if (value && value > 0) {
-                e.target.style.borderColor = '#2ed573';
-                e.target.title = '';
+                setFieldState(e.target, 'valid');
             } else if (value === 0) {
-                e.target.style.borderColor = '#ffa502';
-                e.target.title = '座位号必须大于0';
+                setFieldState(e.target, 'warning', '座位号必须大于0');
             } else {
-                e.target.style.borderColor = '';
-                e.target.title = '';
+                setFieldState(e.target, 'none');
             }
         });
     }
@@ -762,16 +846,36 @@ class RollCallApp {
     }
 
     /**
-     * 更新当前标签页
+     * 更新当前标签页（仅渲染可见的标签页）
      */
     updateCurrentTab() {
-        switch (this.state.activeTab) {
-            case 'students':
-                this.updateStudentsTab();
-                break;
-            case 'statistics':
-                this.updateStatisticsTab();
-                break;
+        const tab = this.state.activeTab;
+        if (tab === 'students') {
+            this.updateStudentsTab();
+        } else if (tab === 'statistics') {
+            this.updateStatisticsTab();
+        }
+        if (this.state.dirtyTabs) {
+            this.state.dirtyTabs.delete(tab);
+        }
+    }
+
+    /**
+     * 数据变更后刷新界面。
+     * 隐藏的标签页不立即重建 DOM，只做标记，切回时再渲染，
+     * 避免每次点名都为看不见的表格与卡片付出解析与排版成本。
+     */
+    refreshUI() {
+        this.loadInitialData();
+        this.updateUI();
+
+        const active = this.state.activeTab;
+        if (active === 'students' || active === 'statistics') {
+            this.updateCurrentTab();
+        } else {
+            if (this.state.dirtyTabs) {
+                this.state.dirtyTabs.add('students').add('statistics');
+            }
         }
     }
 
@@ -789,11 +893,8 @@ class RollCallApp {
         // 禁用按钮防止重复点击
         this.elements.rollBtn.disabled = true;
         this.elements.rollBtn.classList.add('btn-disabled');
-
-        if (this.elements.rollStatus) {
-            this.elements.rollStatus.textContent = '点名进行中...';
-            this.elements.rollStatus.className = 'status-badge rolling';
-        }
+        this.elements.rollBtn.setAttribute('aria-busy', 'true');
+        this.setRollStatus('点名进行中...', 'rolling');
 
         const count = Math.min(this.state.rollCount || 1, this.state.students.length);
 
@@ -809,13 +910,10 @@ class RollCallApp {
                 }
 
                 if (this.state.selectedMultiple.length > 0) {
-                    this.loadInitialData();
+                    // 选中结果已由 algorithm 返回，界面刷新交给 refreshUI 统一处理
+                    this.refreshUI();
                     this.showSelectedStudents(count);
-                    this.updateUI();
-                    if (this.elements.rollStatus) {
-                        this.elements.rollStatus.textContent = '点名完成';
-                        this.elements.rollStatus.className = 'status-badge completed';
-                    }
+                    this.setRollStatus('点名完成', 'completed');
 
                     // 播放揭晓和弦音与语音播报
                     this.sound.playWin();
@@ -831,10 +929,7 @@ class RollCallApp {
             } catch (error) {
                 this.state.selectedStudent = null;
                 this.state.selectedMultiple = [];
-                if (this.elements.rollStatus) {
-                    this.elements.rollStatus.textContent = '点名失败，请重试';
-                    this.elements.rollStatus.className = 'status-badge failed';
-                }
+                this.setRollStatus('点名失败，请重试', 'failed');
                 if (this.elements.selectedStudent) {
                     this.elements.selectedStudent.textContent = '点名未保存，请重试';
                 }
@@ -849,6 +944,18 @@ class RollCallApp {
     }
 
     /**
+     * 更新点名状态徽标，并通过 aria-live 播报给读屏软件
+     */
+    setRollStatus(text, state) {
+        const status = this.elements.rollStatus;
+        if (!status) return;
+        status.textContent = text;
+        status.className = 'status-badge' + (state ? ' ' + state : '');
+        status.setAttribute('role', 'status');
+        status.setAttribute('aria-live', 'polite');
+    }
+
+    /**
      * 恢复按钮状态
      */
     enableRollButton() {
@@ -857,60 +964,108 @@ class RollCallApp {
         btn.disabled = false;
         btn.classList.remove('btn-disabled');
         btn.removeAttribute('style');
+        btn.removeAttribute('aria-busy');
     }
 
     /**
-     * 开始滚动动画
+     * 开始滚动动画。
+     * 使用 requestAnimationFrame + 时间驱动，帧率自适应（120Hz 屏幕更均匀）；
+     * 只创建一次节点，之后仅更新 textContent，避免每帧重建 DOM。
      */
     startRollingAnimation(count, callback) {
-        const interval = 45;
-        const duration = Math.max(500, Math.min(950, this.state.students.length * 20 + 450));
-        const iterations = Math.max(Math.floor(duration / interval), 1);
-        let currentIter = 0;
-        let rollInterval;
+        const box = this.elements.selectedStudent;
+        const students = this.state.students;
+        const reducedMotion = this.prefersReducedMotion();
+        const tickInterval = 45;
+        const duration = reducedMotion
+            ? 0
+            : Math.max(500, Math.min(950, students.length * 20 + 450));
 
-        this.elements.selectedStudent.classList.add('rolling-fast');
+        // 动画开始前建立骨架节点，后续只改文本
+        let nameEl;
+        let seatEl;
+        let pickerNodes;
 
-        const tick = () => {
-            this.sound.playTick();
+        if (count === 1) {
+            box.replaceChildren();
+            nameEl = document.createElement('div');
+            nameEl.className = 'name rolling-text';
+            seatEl = document.createElement('div');
+            seatEl.className = 'seat rolling-text';
+            box.append(nameEl, seatEl);
+        } else {
+            box.replaceChildren();
+            const grid = document.createElement('div');
+            grid.className = 'multi-roll-grid';
+            pickerNodes = [];
+            for (let i = 0; i < count; i++) {
+                const card = document.createElement('div');
+                card.className = 'multi-student-card';
+                const cardSeat = document.createElement('span');
+                cardSeat.className = 'card-seat';
+                const cardName = document.createElement('span');
+                cardName.className = 'card-name';
+                card.append(cardSeat, cardName);
+                grid.appendChild(card);
+                pickerNodes.push({ seat: cardSeat, name: cardName });
+            }
+            box.appendChild(grid);
+        }
 
+        const pickRandom = () => students[Math.floor(Math.random() * students.length)];
+
+        const renderTick = () => {
             if (count === 1) {
-                const randomStudent = this.state.students[Math.floor(Math.random() * this.state.students.length)];
-                if (randomStudent) {
-                    this.elements.selectedStudent.innerHTML = `
-                        <div class="name rolling-text">${DialogService.escapeHtml(randomStudent.name)}</div>
-                        <div class="seat rolling-text">座位号：${DialogService.escapeHtml(randomStudent.seat)}</div>
-                    `;
+                const student = pickRandom();
+                if (student) {
+                    nameEl.textContent = student.name;
+                    seatEl.textContent = '座位号：' + student.seat;
                 }
             } else {
-                // 多人随机闪烁
-                const picked = [];
-                for (let i = 0; i < count; i++) {
-                    const s = this.state.students[Math.floor(Math.random() * this.state.students.length)];
-                    if (s) picked.push(s);
-                }
-                this.elements.selectedStudent.innerHTML = `
-                    <div class="multi-roll-grid">
-                        ${picked.map(s => `
-                            <div class="multi-student-card">
-                                <span class="card-seat">座位 ${DialogService.escapeHtml(s.seat)}</span>
-                                <span class="card-name">${DialogService.escapeHtml(s.name)}</span>
-                            </div>
-                        `).join('')}
-                    </div>
-                `;
-            }
-
-            currentIter += 1;
-            if (currentIter >= iterations) {
-                clearInterval(rollInterval);
-                this.elements.selectedStudent.classList.remove('rolling-fast');
-                requestAnimationFrame(callback);
+                pickerNodes.forEach(node => {
+                    const student = pickRandom();
+                    if (student) {
+                        node.seat.textContent = '座位 ' + student.seat;
+                        node.name.textContent = student.name;
+                    }
+                });
             }
         };
 
-        tick();
-        rollInterval = setInterval(tick, interval);
+        // 减少动态效果时只渲染一帧，直接进入结果
+        if (reducedMotion || duration === 0) {
+            renderTick();
+            requestAnimationFrame(callback);
+            return;
+        }
+
+        box.classList.add('rolling-fast');
+        box.setAttribute('aria-busy', 'true');
+
+        const startTime = performance.now();
+        let lastTickTime = 0;
+
+        const frame = (now) => {
+            const elapsed = now - startTime;
+
+            if (elapsed >= duration) {
+                box.classList.remove('rolling-fast');
+                box.removeAttribute('aria-busy');
+                requestAnimationFrame(callback);
+                return;
+            }
+
+            if (now - lastTickTime >= tickInterval) {
+                lastTickTime = now;
+                this.sound.playTick();
+                renderTick();
+            }
+
+            requestAnimationFrame(frame);
+        };
+
+        renderTick();
+        requestAnimationFrame(frame);
     }
 
     /**
@@ -918,54 +1073,89 @@ class RollCallApp {
      */
     showSelectedStudents(count) {
         this.createParticleExplosion();
-        this.elements.selectedStudent.classList.add('flip-in');
+        const box = this.elements.selectedStudent;
+        box.classList.add('flip-in');
 
         if (count === 1 && this.state.selectedStudent) {
             const student = this.state.selectedStudent;
-            this.elements.selectedStudent.innerHTML = `
-                <div class="name">${DialogService.escapeHtml(student.name)}</div>
-                <div class="seat">座位号：${DialogService.escapeHtml(student.seat)}</div>
-            `;
-            this.elements.studentInfo.innerHTML = `
-                该学生本周期内已被点中 <strong>${DialogService.escapeHtml(student.callCount)}</strong> 次
-            `;
+
+            const nameEl = document.createElement('div');
+            nameEl.className = 'name';
+            nameEl.textContent = student.name;
+
+            const seatEl = document.createElement('div');
+            seatEl.className = 'seat';
+            seatEl.textContent = '座位号：' + student.seat;
+
+            box.replaceChildren(nameEl, seatEl);
+
+            const strong = document.createElement('strong');
+            strong.textContent = String(student.callCount);
+            this.elements.studentInfo.replaceChildren(
+                document.createTextNode('该学生本周期内已被点中 '),
+                strong,
+                document.createTextNode(' 次')
+            );
         } else {
             const list = this.state.selectedMultiple;
-            this.elements.selectedStudent.innerHTML = `
-                <div class="multi-roll-grid">
-                    ${list.map(s => `
-                        <div class="multi-student-card flip-in">
-                            <span class="card-seat">座位号：${DialogService.escapeHtml(s.seat)}</span>
-                            <span class="card-name">${DialogService.escapeHtml(s.name)}</span>
-                            <span class="card-count">本周期被点 ${DialogService.escapeHtml(s.callCount)} 次</span>
-                        </div>
-                    `).join('')}
-                </div>
-            `;
-            this.elements.studentInfo.innerHTML = `
-                本次共抽选 <strong>${list.length}</strong> 名同学回答问题
-            `;
+            const grid = document.createElement('div');
+            grid.className = 'multi-roll-grid';
+
+            list.forEach(student => {
+                const card = document.createElement('div');
+                card.className = 'multi-student-card flip-in';
+
+                const seat = document.createElement('span');
+                seat.className = 'card-seat';
+                seat.textContent = '座位号：' + student.seat;
+
+                const name = document.createElement('span');
+                name.className = 'card-name';
+                name.textContent = student.name;
+
+                const countEl = document.createElement('span');
+                countEl.className = 'card-count';
+                countEl.textContent = `本周期被点 ${student.callCount || 0} 次`;
+
+                card.append(seat, name, countEl);
+                grid.appendChild(card);
+            });
+
+            box.replaceChildren(grid);
+
+            const strong = document.createElement('strong');
+            strong.textContent = String(list.length);
+            this.elements.studentInfo.replaceChildren(
+                document.createTextNode('本次共抽选 '),
+                strong,
+                document.createTextNode(' 名同学回答问题')
+            );
         }
 
         setTimeout(() => {
-            this.elements.selectedStudent.classList.remove('flip-in');
+            box.classList.remove('flip-in');
         }, 650);
     }
 
     /**
-     * 创建粒子爆炸礼花效果
+     * 创建粒子爆炸礼花效果。
+     * 减少了粒子数量，并用单个定时器统一清理，避免每次点名创建几十个定时器。
      */
     createParticleExplosion() {
+        if (this.prefersReducedMotion()) return;
+
         const resultDisplay = document.querySelector('.roll-display-area');
         if (!resultDisplay) return;
         const colors = ['#667eea', '#764ba2', '#f093fb', '#4facfe', '#00f2fe', '#43e97b', '#ffd166', '#ff4757'];
+        const particleCount = 22;
+        const fragment = document.createDocumentFragment();
 
-        for (let i = 0; i < 36; i++) {
-            const particle = document.createElement('div');
+        for (let i = 0; i < particleCount; i++) {
+            const particle = document.createElement('span');
             particle.className = 'particle';
             particle.style.background = colors[Math.floor(Math.random() * colors.length)];
 
-            const angle = (Math.PI * 2 * i) / 36;
+            const angle = (Math.PI * 2 * i) / particleCount;
             const velocity = 120 + Math.random() * 120;
             const tx = Math.cos(angle) * velocity;
             const ty = Math.sin(angle) * velocity;
@@ -973,12 +1163,15 @@ class RollCallApp {
             particle.style.setProperty('--tx', `${tx}px`);
             particle.style.setProperty('--ty', `${ty}px`);
 
-            resultDisplay.appendChild(particle);
-
-            setTimeout(() => {
-                particle.remove();
-            }, 900);
+            fragment.appendChild(particle);
         }
+
+        resultDisplay.appendChild(fragment);
+
+        // 一次清理全部粒子，而不是为每个粒子挂一个定时器
+        setTimeout(() => {
+            resultDisplay.querySelectorAll('.particle').forEach(node => node.remove());
+        }, 900);
     }
 
     /**
@@ -1027,9 +1220,8 @@ class RollCallApp {
                 NotificationSystem.info(`检测到 ${validation.warnings.length} 个警告，请检查导入数据`);
             }
 
-            this.loadInitialData();
-            this.updateUI();
-            this.updateCurrentTab();
+            this.refreshUI();
+
         } catch (error) {
             NotificationSystem.error('导入失败: ' + error.message);
         } finally {
@@ -1061,9 +1253,8 @@ class RollCallApp {
 
         if (persisted) {
             NotificationSystem.success(`已载入 ${sample.length} 名示例学生数据`);
-            this.loadInitialData();
-            this.updateUI();
-            this.updateCurrentTab();
+            this.refreshUI();
+
         } else {
             NotificationSystem.error('载入示例数据失败');
         }
@@ -1127,9 +1318,8 @@ class RollCallApp {
             if (result) {
                 NotificationSystem.success('学生添加成功');
                 this.hideAddStudentModal();
-                this.loadInitialData();
-                this.updateUI();
-                this.updateCurrentTab();
+                this.refreshUI();
+
             } else {
                 NotificationSystem.error('添加学生失败');
             }
@@ -1187,9 +1377,8 @@ class RollCallApp {
             if (success) {
                 NotificationSystem.success('学生信息已更新');
                 this.hideEditStudentModal();
-                this.loadInitialData();
-                this.updateUI();
-                this.updateCurrentTab();
+                this.refreshUI();
+
             }
         } catch (error) {
             NotificationSystem.error('修改失败: ' + error.message);
@@ -1229,9 +1418,8 @@ class RollCallApp {
             const result = this.storage.deleteStudent(studentId);
             if (result) {
                 NotificationSystem.success(`学生 ${student.name} 已删除`);
-                this.loadInitialData();
-                this.updateUI();
-                this.updateCurrentTab();
+                this.refreshUI();
+
             } else {
                 NotificationSystem.error('删除学生失败');
             }
@@ -1248,26 +1436,20 @@ class RollCallApp {
     }
 
     /**
-     * 更新学生列表显示（支持搜索与排序）
+     * 更新学生列表显示（支持搜索与排序）。
+     * 使用 DOM 节点 + DocumentFragment 一次性替换，避免字符串拼接与重复转义。
      */
     updateStudentList() {
+        const tbody = this.elements.studentsTbody;
+
         if (this.elements.studentCount) {
             this.elements.studentCount.textContent = this.state.students.length;
         }
 
+        if (!tbody) return;
+
         if (this.state.students.length === 0) {
-            if (this.elements.studentsTbody) {
-                this.elements.studentsTbody.innerHTML = `
-                    <tr>
-                        <td colspan="5" class="empty-state">
-                            <div class="empty-content">
-                                <span class="empty-icon">📂</span>
-                                <p>暂无数据，请先导入或点击上方“示例”体验</p>
-                            </div>
-                        </td>
-                    </tr>
-                `;
-            }
+            tbody.replaceChildren(this.buildEmptyRow('📂', '暂无数据，请先导入或点击上方“示例”体验'));
             return;
         }
 
@@ -1300,38 +1482,96 @@ class RollCallApp {
         }
 
         if (list.length === 0) {
-            if (this.elements.studentsTbody) {
-                this.elements.studentsTbody.innerHTML = `
-                    <tr><td colspan="5" class="empty-state">未找到匹配的学生</td></tr>
-                `;
-            }
+            tbody.replaceChildren(this.buildEmptyRow(null, '未找到匹配的学生'));
             return;
         }
 
-        const tbodyHTML = list.map(student => {
-            const timeStr = student.lastCall
-                ? new Date(student.lastCall).toLocaleString('zh-CN', {
-                    month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'
-                })
-                : '从未被点';
+        const fragment = document.createDocumentFragment();
 
-            return `
-                <tr>
-                    <td><strong>${DialogService.escapeHtml(student.seat)}</strong></td>
-                    <td>${DialogService.escapeHtml(student.name)}</td>
-                    <td><span class="call-badge">${DialogService.escapeHtml(student.callCount || 0)} 次</span></td>
-                    <td><span style="opacity:0.75; font-size:0.85rem;">${DialogService.escapeHtml(timeStr)}</span></td>
-                    <td class="table-ops">
-                        <button class="btn-sm btn-edit" data-action="edit-student" data-id="${DialogService.escapeHtml(student.id)}">编辑</button>
-                        <button class="btn-sm btn-danger" data-action="delete-student" data-id="${DialogService.escapeHtml(student.id)}">删除</button>
-                    </td>
-                </tr>
-            `;
-        }).join('');
+        list.forEach(student => {
+            const row = document.createElement('tr');
 
-        if (this.elements.studentsTbody) {
-            this.elements.studentsTbody.innerHTML = tbodyHTML;
+            const seatCell = document.createElement('td');
+            const seatStrong = document.createElement('strong');
+            seatStrong.textContent = String(student.seat);
+            seatCell.appendChild(seatStrong);
+
+            const nameCell = document.createElement('td');
+            nameCell.textContent = student.name;
+
+            const callCell = document.createElement('td');
+            const callBadge = document.createElement('span');
+            callBadge.className = 'call-badge';
+            callBadge.textContent = `${student.callCount || 0} 次`;
+            callCell.appendChild(callBadge);
+
+            const timeCell = document.createElement('td');
+            const timeSpan = document.createElement('span');
+            timeSpan.className = 'time-muted';
+            timeSpan.textContent = this.formatShortTime(student.lastCall);
+            timeCell.appendChild(timeSpan);
+
+            const opsCell = document.createElement('td');
+            opsCell.className = 'table-ops';
+            opsCell.append(
+                this.buildRowAction('编辑', 'edit-student', student.id, 'btn-sm btn-edit'),
+                this.buildRowAction('删除', 'delete-student', student.id, 'btn-sm btn-danger')
+            );
+
+            row.append(seatCell, nameCell, callCell, timeCell, opsCell);
+            fragment.appendChild(row);
+        });
+
+        tbody.replaceChildren(fragment);
+    }
+
+    /**
+     * 构建表格空状态行
+     */
+    buildEmptyRow(icon, text) {
+        const row = document.createElement('tr');
+        const cell = document.createElement('td');
+        cell.colSpan = 5;
+        cell.className = 'empty-state';
+
+        if (icon) {
+            const content = document.createElement('div');
+            content.className = 'empty-content';
+            const iconEl = document.createElement('span');
+            iconEl.className = 'empty-icon';
+            iconEl.textContent = icon;
+            const textEl = document.createElement('p');
+            textEl.textContent = text;
+            content.append(iconEl, textEl);
+            cell.appendChild(content);
+        } else {
+            cell.textContent = text;
         }
+
+        row.appendChild(cell);
+        return row;
+    }
+
+    /**
+     * 构建行内操作按钮（事件统一由 tbody 委托处理）
+     */
+    buildRowAction(label, action, id, className) {
+        const button = document.createElement('button');
+        button.className = className;
+        button.dataset.action = action;
+        button.dataset.id = id;
+        button.textContent = label;
+        return button;
+    }
+
+    /**
+     * 格式化“月-日 时:分”，从未点名时返回占位文案
+     */
+    formatShortTime(isoString) {
+        if (!isoString) return '从未被点';
+        return new Date(isoString).toLocaleString('zh-CN', {
+            month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'
+        });
     }
 
     /**
@@ -1349,12 +1589,14 @@ class RollCallApp {
         if (this.elements.statsViewCards && this.elements.statsViewHistory) {
             this.elements.statsViewCards.classList.toggle('active', view === 'cards');
             this.elements.statsViewHistory.classList.toggle('active', view === 'history');
+            this.elements.statsViewCards.setAttribute('aria-pressed', String(view === 'cards'));
+            this.elements.statsViewHistory.setAttribute('aria-pressed', String(view === 'history'));
         }
         if (this.elements.statsGrid) {
-            this.elements.statsGrid.style.display = view === 'cards' ? 'grid' : 'none';
+            this.elements.statsGrid.hidden = view !== 'cards';
         }
         if (this.elements.statsHistoryList) {
-            this.elements.statsHistoryList.style.display = view === 'history' ? 'block' : 'none';
+            this.elements.statsHistoryList.hidden = view !== 'history';
         }
         this.updateStatistics();
     }
@@ -1384,19 +1626,37 @@ class RollCallApp {
         if (this.elements.distributionBar) {
             const dist = stats.callDistribution;
             const entries = Object.entries(dist).sort((a, b) => Number(a[0]) - Number(b[0]));
+            const bar = this.elements.distributionBar;
+
             if (entries.length === 0 || stats.totalStudents === 0) {
-                this.elements.distributionBar.innerHTML = '<span class="empty-subtext">暂无分布数据</span>';
+                const empty = document.createElement('span');
+                empty.className = 'empty-subtext';
+                empty.textContent = '暂无分布数据';
+                bar.replaceChildren(empty);
             } else {
-                this.elements.distributionBar.innerHTML = entries.map(([count, num]) => {
-                    const pct = Math.round((num / stats.totalStudents) * 100);
-                    return `
-                        <div class="distribution-chip">
-                            <span class="chip-count">${DialogService.escapeHtml(count)} 次</span>
-                            <span class="chip-students">${DialogService.escapeHtml(num)} 人</span>
-                            <span class="chip-percent">${pct}%</span>
-                        </div>
-                    `;
-                }).join('');
+                const fragment = document.createDocumentFragment();
+
+                entries.forEach(([count, num]) => {
+                    const chip = document.createElement('div');
+                    chip.className = 'distribution-chip';
+
+                    const countEl = document.createElement('span');
+                    countEl.className = 'chip-count';
+                    countEl.textContent = `${count} 次`;
+
+                    const studentsEl = document.createElement('span');
+                    studentsEl.className = 'chip-students';
+                    studentsEl.textContent = `${num} 人`;
+
+                    const percentEl = document.createElement('span');
+                    percentEl.className = 'chip-percent';
+                    percentEl.textContent = `${Math.round((num / stats.totalStudents) * 100)}%`;
+
+                    chip.append(countEl, studentsEl, percentEl);
+                    fragment.appendChild(chip);
+                });
+
+                bar.replaceChildren(fragment);
             }
         }
 
@@ -1405,8 +1665,9 @@ class RollCallApp {
         const searchTerm = searchInput ? searchInput.value.trim().toLowerCase() : '';
 
         if (this.elements.statsGrid) {
+            const statsGrid = this.elements.statsGrid;
             if (stats.totalStudents === 0) {
-                this.elements.statsGrid.innerHTML = '<div class="empty-state">暂无统计数据</div>';
+                statsGrid.replaceChildren(this.buildEmptyState('暂无统计数据'));
             } else {
                 let filtered = stats.students;
                 if (searchTerm) {
@@ -1417,27 +1678,43 @@ class RollCallApp {
                 }
 
                 if (filtered.length === 0) {
-                    this.elements.statsGrid.innerHTML = '<div class="empty-state">未找到匹配的学生</div>';
+                    statsGrid.replaceChildren(this.buildEmptyState('未找到匹配的学生'));
                 } else {
-                    this.elements.statsGrid.innerHTML = filtered.map(student => `
-                        <div class="stat-item-card">
-                            <div class="stat-item-header">
-                                <div class="stat-seat">座位号：${DialogService.escapeHtml(student.seat)}</div>
-                                <span class="stat-call-count">${DialogService.escapeHtml(student.callCount)} 次</span>
-                            </div>
-                            <div class="stat-item-body">
-                                <div class="stat-name">${DialogService.escapeHtml(student.name)}</div>
-                            </div>
-                            <div class="stat-item-footer">
-                                <div class="stat-last-call">
-                                    最后点名：${student.lastCall ?
-                                        new Date(student.lastCall).toLocaleString('zh-CN', {
-                                            month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'
-                                        }) : '从未被点'}
-                                </div>
-                            </div>
-                        </div>
-                    `).join('');
+                    const fragment = document.createDocumentFragment();
+
+                    filtered.forEach(student => {
+                        const card = document.createElement('div');
+                        card.className = 'stat-item-card';
+
+                        const header = document.createElement('div');
+                        header.className = 'stat-item-header';
+                        const seat = document.createElement('div');
+                        seat.className = 'stat-seat';
+                        seat.textContent = '座位号：' + student.seat;
+                        const callCount = document.createElement('span');
+                        callCount.className = 'stat-call-count';
+                        callCount.textContent = `${student.callCount || 0} 次`;
+                        header.append(seat, callCount);
+
+                        const body = document.createElement('div');
+                        body.className = 'stat-item-body';
+                        const name = document.createElement('div');
+                        name.className = 'stat-name';
+                        name.textContent = student.name;
+                        body.appendChild(name);
+
+                        const footer = document.createElement('div');
+                        footer.className = 'stat-item-footer';
+                        const lastCall = document.createElement('div');
+                        lastCall.className = 'stat-last-call';
+                        lastCall.textContent = '最后点名：' + this.formatShortTime(student.lastCall);
+                        footer.appendChild(lastCall);
+
+                        card.append(header, body, footer);
+                        fragment.appendChild(card);
+                    });
+
+                    statsGrid.replaceChildren(fragment);
                 }
             }
         }
@@ -1445,8 +1722,10 @@ class RollCallApp {
         // 点名流水表格视图
         if (this.elements.statsHistoryList) {
             const history = this.state.callHistory || [];
+            const container = this.elements.statsHistoryList;
+
             if (history.length === 0) {
-                this.elements.statsHistoryList.innerHTML = '<div class="empty-state">暂无点名历史流水</div>';
+                container.replaceChildren(this.buildEmptyState('暂无点名历史流水'));
             } else {
                 let filteredHistory = history;
                 if (searchTerm) {
@@ -1456,30 +1735,59 @@ class RollCallApp {
                     );
                 }
 
-                this.elements.statsHistoryList.innerHTML = `
-                    <table class="history-table">
-                        <thead>
-                            <tr>
-                                <th>序号</th>
-                                <th>座位号</th>
-                                <th>姓名</th>
-                                <th>点名时间</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${filteredHistory.slice(0, 100).map((record, idx) => `
-                                <tr>
-                                    <td>${idx + 1}</td>
-                                    <td><strong>${DialogService.escapeHtml(record.studentSeat)}</strong></td>
-                                    <td>${DialogService.escapeHtml(record.studentName)}</td>
-                                    <td>${DialogService.escapeHtml(record.timestamp ? new Date(record.timestamp).toLocaleString('zh-CN') : record.date)}</td>
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
-                `;
+                const table = document.createElement('table');
+                table.className = 'history-table';
+
+                const thead = document.createElement('thead');
+                const headRow = document.createElement('tr');
+                ['序号', '座位号', '姓名', '点名时间'].forEach(label => {
+                    const th = document.createElement('th');
+                    th.textContent = label;
+                    headRow.appendChild(th);
+                });
+                thead.appendChild(headRow);
+
+                const tbody = document.createElement('tbody');
+                const fragment = document.createDocumentFragment();
+
+                filteredHistory.slice(0, 100).forEach((record, idx) => {
+                    const row = document.createElement('tr');
+
+                    const indexCell = document.createElement('td');
+                    indexCell.textContent = String(idx + 1);
+
+                    const seatCell = document.createElement('td');
+                    const seatStrong = document.createElement('strong');
+                    seatStrong.textContent = String(record.studentSeat ?? '');
+                    seatCell.appendChild(seatStrong);
+
+                    const nameCell = document.createElement('td');
+                    nameCell.textContent = record.studentName || '';
+
+                    const timeCell = document.createElement('td');
+                    timeCell.textContent = record.timestamp
+                        ? new Date(record.timestamp).toLocaleString('zh-CN')
+                        : (record.date || '');
+
+                    row.append(indexCell, seatCell, nameCell, timeCell);
+                    fragment.appendChild(row);
+                });
+
+                tbody.appendChild(fragment);
+                table.append(thead, tbody);
+                container.replaceChildren(table);
             }
         }
+    }
+
+    /**
+     * 构建统一的空状态占位节点
+     */
+    buildEmptyState(text) {
+        const el = document.createElement('div');
+        el.className = 'empty-state';
+        el.textContent = text;
+        return el;
     }
 
     /**
@@ -1498,9 +1806,8 @@ class RollCallApp {
 
         try {
             this.algorithm.resetAllCallCounts();
-            this.loadInitialData();
-            this.updateUI();
-            this.updateCurrentTab();
+            this.refreshUI();
+
             NotificationSystem.success('统计周期已重置');
         } catch (error) {
             NotificationSystem.error('重置统计周期失败: ' + error.message);
@@ -1545,9 +1852,8 @@ class RollCallApp {
             if (!this.storage.clearAllData()) {
                 throw new Error('无法保存清空后的数据');
             }
-            this.loadInitialData();
-            this.updateUI();
-            this.updateCurrentTab();
+            this.refreshUI();
+
             NotificationSystem.success('所有数据已清空');
         } catch (error) {
             NotificationSystem.error('清空数据失败: ' + error.message);

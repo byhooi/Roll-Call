@@ -2,6 +2,52 @@
  * Excel 导入导出功能
  */
 
+/**
+ * SheetJS 的 CDN 地址。不在页面首屏同步加载：
+ * 只有真正需要导入/导出时才按需注入，节省约 900KB 的首次下载与解析。
+ */
+const XLSX_CDN_URL = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+let xlsxLoadPromise = null;
+
+/**
+ * 确保 XLSX 已就绪，返回全局 XLSX 对象
+ * @returns {Promise<Object>}
+ */
+function ensureXlsx() {
+    if (typeof window !== 'undefined' && window.XLSX) {
+        return Promise.resolve(window.XLSX);
+    }
+
+    if (!xlsxLoadPromise) {
+        xlsxLoadPromise = new Promise((resolve, reject) => {
+            if (typeof document === 'undefined') {
+                reject(new Error('当前环境不支持加载 Excel 组件'));
+                return;
+            }
+            const script = document.createElement('script');
+            script.src = XLSX_CDN_URL;
+            script.async = true;
+            script.crossOrigin = 'anonymous';
+            script.onload = () => {
+                if (window.XLSX) {
+                    resolve(window.XLSX);
+                } else {
+                    xlsxLoadPromise = null;
+                    reject(new Error('Excel 组件加载异常'));
+                }
+            };
+            script.onerror = () => {
+                xlsxLoadPromise = null;
+                script.remove();
+                reject(new Error('Excel 组件加载失败，请检查网络后重试'));
+            };
+            document.head.appendChild(script);
+        });
+    }
+
+    return xlsxLoadPromise;
+}
+
 // 创建 ExcelManager 类
 class ExcelManager {
     constructor() {
@@ -14,6 +60,8 @@ class ExcelManager {
      * @returns {Promise} 导入结果
      */
     async importStudentsFromExcel(file) {
+        const XLSX = await ensureXlsx();
+
         return new Promise((resolve, reject) => {
             try {
                 const reader = new FileReader();
@@ -22,10 +70,10 @@ class ExcelManager {
                     try {
                         const data = new Uint8Array(e.target.result);
 
-                        // 使用更好的编码选项来处理中文字符
+                        // codepage 65001 用于兼容部分未声明编码的旧版 xls 中文表头
                         const workbook = XLSX.read(data, {
                             type: 'array',
-                            codepage: 65001, // UTF-8编码
+                            codepage: 65001,
                             cellNF: false,
                             cellHTML: false,
                             cellFormula: false
@@ -131,6 +179,8 @@ class ExcelManager {
      * @returns {Promise} 导出结果
      */
     async exportStudentsToExcel() {
+        const XLSX = await ensureXlsx();
+
         return new Promise((resolve, reject) => {
             try {
                 const students = this.storage.getStudents();
@@ -177,6 +227,8 @@ class ExcelManager {
      * @returns {Promise} 导出结果
      */
     async exportStatisticsToExcel() {
+        const XLSX = await ensureXlsx();
+
         return new Promise((resolve, reject) => {
             try {
                 const stats = algorithm.getStudentStats();
@@ -383,11 +435,10 @@ class ExcelManager {
 
     /**
      * 下载学生名单导入模板
+     * @returns {Promise<boolean>}
      */
-    downloadTemplate() {
-        if (typeof XLSX === 'undefined') {
-            throw new Error('Excel 导出组件未加载');
-        }
+    async downloadTemplate() {
+        const XLSX = await ensureXlsx();
 
         const templateData = [
             { '座位号': 1, '姓名': '张伟' },

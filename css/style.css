@@ -41,10 +41,15 @@
     --spacing-lg: 2rem;     /* 32px */
     --spacing-xl: 3rem;     /* 48px */
 
-    /* Typography: Premium cross-platform Chinese font stack */
-    --font-family: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "WenQuanYi Micro Hei", sans-serif;
+    /* Typography: Chinese-first system font stack, no third-party font CDN */
+    --font-family: system-ui, -apple-system, "Segoe UI", "PingFang SC", "HarmonyOS Sans SC",
+        "Noto Sans SC", "Source Han Sans SC", "Microsoft YaHei", "WenQuanYi Micro Hei", sans-serif;
+    /* Typography: Chinese-first system font stack (no third-party font CDN) */
+    --font-numeric: "DIN Alternate", "SF Pro Display", "Segoe UI", system-ui, sans-serif;
     --transition-fast: 0.18s ease;
     --transition-normal: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    /* Numeric / latin glyph stack for statistics values */
+    --touch-target: 44px;
 }
 
 /* Light / High-Contrast Daytime Theme */
@@ -123,28 +128,33 @@ body.light-theme ::-webkit-scrollbar-thumb {
     left: 0;
     width: 100vw;
     height: 100vh;
+    height: 100dvh; /* Avoids the jump caused by the collapsing address bar on mobile */
     z-index: -1;
     overflow: hidden;
     background: var(--bg-gradient);
     pointer-events: none;
     transition: background 0.5s ease;
+    /* Blur radius cut from 90-100px to 48-56px: similar look, much cheaper repaint */
+    contain: strict;
 }
 
+    /* Blur radius cut from 90-100px to 48-56px: similar look, far less GPU work */
 .mesh-1,
 .mesh-2,
 .mesh-3 {
     position: absolute;
     border-radius: 50%;
-    filter: blur(90px);
+    filter: blur(52px);
     opacity: 0.55;
     animation: drift 22s infinite alternate ease-in-out;
+    will-change: transform;
 }
 
 body.light-theme .mesh-1,
 body.light-theme .mesh-2,
 body.light-theme .mesh-3 {
     opacity: 0.4;
-    filter: blur(100px);
+    filter: blur(56px);
 }
 
 .mesh-1 {
@@ -170,17 +180,33 @@ body.light-theme .mesh-3 {
     background: radial-gradient(circle, #e056fd, transparent 70%);
     top: 45%;
     left: 45%;
-    transform: translate(-50%, -50%);
-    animation: drift 28s infinite alternate-reverse ease-in-out;
+    animation: drift-alt 28s infinite alternate-reverse ease-in-out;
 }
 
+    /* translate3d keeps the mesh on the compositor; no rotate, which would rebuild the blur buffer every frame */
 @keyframes drift {
     0% {
-        transform: translate(0, 0) rotate(0deg);
+        transform: translate3d(0, 0, 0);
     }
     100% {
-        transform: translate(90px, 60px) rotate(25deg);
+        transform: translate3d(90px, 60px, 0);
     }
+}
+
+@keyframes drift-alt {
+    0% {
+        transform: translate3d(-50%, -50%, 0);
+    }
+    100% {
+        transform: translate3d(calc(-50% + 70px), calc(-50% + 40px), 0);
+    }
+}
+
+    /* Pause the background animation while projecting full screen: saves battery and frames */
+body.is-fullscreen .background-mesh .mesh-1,
+body.is-fullscreen .background-mesh .mesh-2,
+body.is-fullscreen .background-mesh .mesh-3 {
+    animation-play-state: paused;
 }
 
 /* =========================================
@@ -253,7 +279,7 @@ body.light-theme .mesh-3 {
     display: flex;
     align-items: center;
     gap: 6px;
-    transition: all var(--transition-normal);
+    transition: color var(--transition-normal), background-color var(--transition-normal), box-shadow var(--transition-normal), transform var(--transition-normal);
 }
 
 .nav-btn .icon {
@@ -291,7 +317,7 @@ body.light-theme .mesh-3 {
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    transition: all var(--transition-fast);
+    transition: color var(--transition-fast), background-color var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
     user-select: none;
 }
 
@@ -411,7 +437,7 @@ body.light-theme .roll-mode-bar {
     font-size: 0.82rem;
     font-weight: 600;
     cursor: pointer;
-    transition: all var(--transition-fast);
+    transition: color var(--transition-fast), background-color var(--transition-fast), border-color var(--transition-fast);
 }
 
 .mode-chip:hover {
@@ -448,7 +474,7 @@ body.light-theme .roll-mode-bar {
     letter-spacing: 1px;
     font-weight: 600;
     color: var(--text-muted);
-    transition: all var(--transition-fast);
+    transition: color var(--transition-fast), background-color var(--transition-fast), border-color var(--transition-fast);
 }
 
 .status-badge.rolling {
@@ -779,7 +805,7 @@ body.is-fullscreen .result-box .seat {
     padding: 0.5rem 0.95rem;
     border-radius: 10px;
     cursor: pointer;
-    transition: all var(--transition-fast);
+    transition: color var(--transition-fast), background-color var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
     font-family: inherit;
     font-size: 0.88rem;
     font-weight: 500;
@@ -836,7 +862,7 @@ body.light-theme .table-toolbar {
     padding: 5px 14px;
     flex: 1;
     max-width: 320px;
-    transition: all var(--transition-fast);
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .search-box:focus-within {
@@ -888,8 +914,11 @@ body.light-theme .table-toolbar {
 .table-container {
     flex: 1;
     overflow-y: auto;
+    /* Allow horizontal scrolling on narrow screens so the 5 columns stay readable */
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
     position: relative;
-    transition: background 0.2s ease;
+    transition: background-color 0.2s ease;
 }
 
 .table-container.drag-over {
@@ -945,6 +974,12 @@ body.light-theme .modern-table tr:hover td {
     color: var(--text-main);
 }
 
+/* 表格中的次要时间信息，替代原先的内联 style */
+.time-muted {
+    opacity: 0.75;
+    font-size: 0.85rem;
+}
+
 .table-ops {
     display: flex;
     justify-content: center;
@@ -958,7 +993,7 @@ body.light-theme .modern-table tr:hover td {
     font-family: inherit;
     cursor: pointer;
     border: 1px solid var(--glass-border);
-    transition: all var(--transition-fast);
+    transition: color var(--transition-fast), background-color var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast);
 }
 
 .btn-edit {
@@ -1060,6 +1095,9 @@ body.light-theme .modern-table tr:hover td {
     font-size: 1.75rem;
     font-weight: 700;
     line-height: 1.2;
+    /* 数字字形栈与等宽数字，投影时读数更清晰 */
+    font-family: var(--font-numeric);
+    font-variant-numeric: tabular-nums;
 }
 
 /* Distribution Bars Card */
@@ -1152,7 +1190,7 @@ body.light-theme .modern-table tr:hover td {
     font-family: inherit;
     font-size: 0.85rem;
     font-weight: 600;
-    transition: all var(--transition-fast);
+    transition: color var(--transition-fast), background-color var(--transition-fast), border-color var(--transition-fast);
 }
 
 .sm-tab-btn.active {
@@ -1263,7 +1301,7 @@ body.light-theme .modern-table tr:hover td {
     font-family: inherit;
     font-size: 0.82rem;
     font-weight: 500;
-    transition: all var(--transition-fast);
+    transition: color var(--transition-fast), background-color var(--transition-fast), border-color var(--transition-fast);
 }
 
 .sm-btn:hover {
@@ -1291,7 +1329,7 @@ body.light-theme .modern-table tr:hover td {
     font-size: 0.82rem;
     outline: none;
     width: 170px;
-    transition: all var(--transition-fast);
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .search-input:focus {
@@ -1390,7 +1428,7 @@ body.light-theme .modern-table tr:hover td {
     font-family: inherit;
     font-size: 0.95rem;
     outline: none;
-    transition: all var(--transition-fast);
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 body.light-theme .form-group input {
@@ -1478,7 +1516,7 @@ body.light-theme .form-group input {
     font-family: inherit;
     font-weight: 600;
     font-size: 0.9rem;
-    transition: all var(--transition-fast);
+    transition: color var(--transition-fast), background-color var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .btn-secondary {
@@ -1522,14 +1560,13 @@ body.light-theme .form-group input {
     left: 50%;
     transform: translateX(-50%) translateY(-24px);
     background: rgba(25, 20, 50, 0.95);
-    backdrop-filter: blur(12px);
     padding: 12px 26px;
     border-radius: 50px;
     box-shadow: 0 12px 36px rgba(0, 0, 0, 0.35);
     font-weight: 600;
     font-size: 0.92rem;
     opacity: 0;
-    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease;
     z-index: 99999;
     color: #ffffff;
     border: 1px solid var(--glass-border);
@@ -1755,5 +1792,130 @@ body.light-theme .toast {
 
     .stats-grid-container {
         grid-template-columns: 1fr;
+    }
+}
+
+/* =========================================
+   14. Accessibility & Input
+   ========================================= */
+/* 键盘可达性：所有可交互元素统一可见焦点环 */
+:is(button, a, input, select, textarea, [tabindex]):focus-visible {
+    outline: 2px solid var(--accent-color);
+    outline-offset: 2px;
+    border-radius: 8px;
+}
+
+/* 屏幕阅读器专用文本 */
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* 表单实时校验状态：替代 JS 内联 style.borderColor */
+.field-valid {
+    border-color: var(--success-color) !important;
+}
+
+.field-warning {
+    border-color: var(--warning-color) !important;
+}
+
+/* 统计视图切换不再用内联 display，改由数据属性驱动 */
+.stats-grid-container[hidden],
+.stats-history-container[hidden] {
+    display: none !important;
+}
+
+/* 多人结果在小屏可能超出，允许纵向滚动而非撑破布局 */
+.multi-roll-grid {
+    max-height: 60vh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+/* =========================================
+   15. Reduced Motion
+   ========================================= */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+
+    .background-mesh .mesh-1,
+    .background-mesh .mesh-2,
+    .background-mesh .mesh-3,
+    .rolling-fast,
+    .status-badge.rolling {
+        animation: none !important;
+    }
+
+    .particle {
+        display: none !important;
+    }
+}
+
+/* =========================================
+   16. Small Screen Refinements
+   ========================================= */
+@media (max-width: 768px) {
+    /* 触控目标放大到可点区域，避免误触 */
+    .mode-chip,
+    .btn-sm,
+    .sm-btn,
+    .icon-btn,
+    .close-modal {
+        min-height: var(--touch-target);
+    }
+
+    .mode-chip {
+        display: inline-flex;
+        align-items: center;
+        padding-inline: 14px;
+    }
+
+    .header-actions {
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .modern-table th,
+    .modern-table td {
+        white-space: nowrap;
+        padding: 10px 12px;
+    }
+
+    .stats-history-container {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .history-table {
+        min-width: 520px;
+    }
+
+    .multi-roll-grid {
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+        gap: 10px;
+    }
+}
+
+/* 异形屏与横屏平板的安全区留白 */
+@supports (padding: env(safe-area-inset-bottom)) {
+    .app-container {
+        padding-left: max(var(--spacing-md), env(safe-area-inset-left));
+        padding-right: max(var(--spacing-md), env(safe-area-inset-right));
+        padding-bottom: max(var(--spacing-sm), env(safe-area-inset-bottom));
     }
 }
