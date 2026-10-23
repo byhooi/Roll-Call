@@ -1,0 +1,11 @@
+{
+  "name": "roll-call",
+  "version": "1.0.0",
+  "private": true,
+  "description": "班级公平随机点名系统（纯静态前端，无构建步骤）",
+  "license": "MIT",
+  "scripts": {
+    "test": "node --test --test-timeout=20000 tests/*.test.cjs",
+    "serve": "python -m http.server 8000"
+  }
+}

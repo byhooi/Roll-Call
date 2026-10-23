@@ -69,28 +69,38 @@ for (const outcome of ['success', 'failure', 'empty']) {
     test(`点名结果状态与 ${outcome} 一致，并恢复按钮`, () => {
         const { app, messages } = setup();
         const student = { id: '1', name: '张三', callCount: 1 };
+        const attributes = {};
         app.state = { students: [student], rollCount: 1 };
         app.elements = {
             rollBtn: {
                 disabled: false,
                 classList: { add() {}, remove() {} },
-                removeAttribute() {}
+                removeAttribute(name) { delete attributes[name]; },
+                setAttribute(name, value) { attributes[name] = value; }
             },
-            rollStatus: {}, selectedStudent: {}, studentInfo: {}
+            rollStatus: {
+                setAttribute(name, value) { this[name] = value; },
+                getAttribute(name) { return this[name]; }
+            }, selectedStudent: {}, studentInfo: {}
         };
         app.startRollingAnimation = (count, callback) => callback();
         app.algorithm = { rollCall() {
             if (outcome === 'failure') throw new Error('保存失败');
             return outcome === 'empty' ? null : student;
         } };
+        // refreshUI 负责数据与界面刷新，这里只验证调用时机，不渲染真实 DOM
+        app.loadInitialData = () => {};
+        app.updateUI = () => {};
         app.showSelectedStudents = () => {};
         app.sound = { playWin() {} };
         app.voice = { speak() {} };
         app.handleRollCall();
         assert.equal(app.elements.rollBtn.disabled, false);
+        assert.equal(attributes['aria-busy'], undefined, '结束点名后应移除忙碌标记');
         if (outcome === 'success') {
             assert.equal(app.elements.rollStatus.className, 'status-badge completed');
             assert.equal(app.elements.rollStatus.textContent, '点名完成');
+            assert.equal(app.elements.rollStatus.getAttribute('aria-live'), 'polite');
             assert.equal(messages.length, 0);
         } else {
             assert.equal(app.elements.rollStatus.className, 'status-badge failed');
@@ -101,3 +111,66 @@ for (const outcome of ['success', 'failure', 'empty']) {
         }
     });
 }
+
+test('点名进行中按钮带忙碌标记，状态徽标具备读屏播报语义', () => {
+    const { app } = setup();
+    const attributes = {};
+    const student = { id: '1', name: '张三', callCount: 1 };
+    app.state = { students: [student], rollCount: 1, dirtyTabs: new Set() };
+    app.elements = {
+        rollBtn: {
+            disabled: false,
+            classList: { add() {}, remove() {} },
+            removeAttribute(name) { delete attributes[name]; },
+            setAttribute(name, value) { attributes[name] = value; }
+        },
+        rollStatus: {
+            textContent: '',
+            className: '',
+            setAttribute(name, value) { this[name] = value; }
+        },
+        selectedStudent: {},
+        studentInfo: {}
+    };
+    let sawBusy = false;
+    app.startRollingAnimation = (count, callback) => {
+        sawBusy = attributes['aria-busy'] === 'true'
+            && app.elements.rollStatus.textContent === '点名进行中...'
+            && app.elements.rollStatus.className === 'status-badge rolling';
+        callback();
+    };
+    app.algorithm = { rollCall: () => student };
+    app.loadInitialData = () => {};
+    app.updateUI = () => {};
+    app.showSelectedStudents = () => {};
+    app.sound = { playWin() {} };
+    app.voice = { speak() {} };
+    app.handleRollCall();
+    assert.equal(sawBusy, true, '滚动期间应处于忙碌状态');
+});
+
+test('refreshUI 只渲染当前标签页，隐藏页面留待切回时刷新', () => {
+    // setup() 会把 updateCurrentTab 置空，这里需要真实的标签页分发逻辑
+    const context = vm.createContext({
+        document: { readyState: 'loading', addEventListener() {} }
+    });
+    vm.runInContext(readFileSync(join(__dirname, '..', 'js', 'app.js'), 'utf8'), context);
+    const app = vm.runInContext('Object.create(RollCallApp.prototype)', context);
+    const rendered = [];
+    app.state = { activeTab: 'roll-call', dirtyTabs: new Set() };
+    app.loadInitialData = () => rendered.push('load');
+    app.updateUI = () => rendered.push('ui');
+    // 通过 updateStatisticsTab 观察统计页是否被渲染
+    app.updateStatisticsTab = () => rendered.push('statistics');
+
+    app.refreshUI();
+    assert.deepEqual(rendered, ['load', 'ui'], '点名页不应重建隐藏的管理/统计页');
+    assert.equal(app.state.dirtyTabs.has('students'), true);
+    assert.equal(app.state.dirtyTabs.has('statistics'), true);
+
+    app.state.activeTab = 'statistics';
+    app.refreshUI();
+    assert.deepEqual(rendered, ['load', 'ui', 'load', 'ui', 'statistics']);
+    assert.equal(app.state.dirtyTabs.has('statistics'), false);
+    assert.equal(app.state.dirtyTabs.has('students'), true);
+});
