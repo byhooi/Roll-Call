@@ -2101,6 +2101,33 @@ body.is-fullscreen .brand-sub {
     }
 }
 
+/* 手机名册：一屏定高 + 表格内部滚动，表头才会真正粘住。
+   原因：.table-card 带 overflow: hidden，表头的 sticky 因此以卡片为参照定位；
+   卡片在手机上原本是 height: auto 跟着整页滚，表头就一起滚走，滚到中间只剩没有标签的数字列。
+   让容器恰好占满一屏，.table-container 才是真正的滚动容器，th 才能贴在表格顶部。
+   偏移量交给 flex 计算，不写死像素：页头换行成几行都不会错位。
+   限定 min-height：手机横屏只有 390px 高，定高面板会把表格压到一两行，那里退回整页滚动。 */
+@media (max-width: 768px) and (min-height: 560px) {
+    .app-container:has(#students.active) {
+        height: 100vh;
+        height: 100dvh;
+        overflow: hidden;
+    }
+
+    /* 中间两层 flex 容器默认 min-height: auto，不清零就撑不住收缩，卡片会顶穿视口 */
+    .app-container:has(#students.active) .content-area,
+    .app-container:has(#students.active) #students.active {
+        min-height: 0;
+    }
+
+    /* 串上 :has 一起生效：不支持 :has 的旧浏览器整块不落地，完全退回改动前的行为 */
+    .app-container:has(#students.active) #students.active > .table-card {
+        flex: 1 1 auto;
+        height: auto;
+        min-height: 0;
+    }
+}
+
 /* 异形屏与横屏平板安全区 */
 @supports (padding: env(safe-area-inset-bottom)) {
     .app-container {

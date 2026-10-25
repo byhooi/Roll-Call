@@ -51,7 +51,7 @@ JavaScript 与 CSS 使用 4 空格缩进。JavaScript 类名使用 `PascalCase`�
 
 深色主题的令牌不是浅色值的机械取反，改色时守住三条线：正文墨字 ≥ 13:1，次级（`--ink-2`）≥ 8:1，注释级（`--ink-3`）≥ 5.5:1；分隔线（`--line`）必须比底色明显亮一档，否则暗底细线整片消失。实心填充块用 `--accent-solid` / `--danger-solid` / `--warning-solid` 与 `--on-solid` 成对取色——亮红配白字在暗底会发虚，深色主题里填充色要压深一档再放白字。浅色主题的注释级（`--ink-3`）同样要 ≥ 4.5:1，导航、表头、说明文字全在这一级。
 
-长表格三件套不要拆开改：`.app-header` 吸顶、`.table-card` 用 `calc(100dvh - 120px)` 限高、表格 `border-collapse: separate`（`collapse` 会让 `th` 的 `sticky` 在 Chrome 失效）。名册与统计的版心限制在 960px 并居中，5 个短字段铺满整屏会把一行拉成两次扫视；`min-width: 769px` 起用 `table-layout: fixed`，只让「操作」列吸收剩余宽度。危险操作（清空、删除、重置周期）常态用中性色，红色只在悬停与确认框里出现。
+长表格三件套不要拆开改：`.app-header` 吸顶、`.table-card` 用 `calc(100dvh - 120px)` 限高、表格 `border-collapse: separate`（`collapse` 会让 `th` 的 `sticky` 在 Chrome 失效）。名册与统计的版心限制在 960px 并居中，5 个短字段铺满整屏会把一行拉成两次扫视；`min-width: 769px` 起用 `table-layout: fixed`，只让「操作」列吸收剩余宽度。危险操作（清空、删除、重置周期）常态用中性色，红色只在悬停与确认框里出现。手机端名册同样靠定高面板让表头粘住：`.table-card` 本身是 `overflow: hidden`，若它跟着整页滚，`th` 的 sticky 就以卡片为参照一起滚走；因此在 `max-width: 768px and min-height: 560px` 内用 `.app-container:has(#students.active)` 把容器收到一屏、把 `.content-area` 与 `#students` 的 `min-height` 清零，剩余高度交给 flex 计算，不写死偏移像素。手机横屏高度不够时退回整页滚动。
 
 ## 测试指南
 
