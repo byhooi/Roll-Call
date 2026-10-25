@@ -248,11 +248,14 @@ class ExcelManager {
                 }));
 
                 // 添加汇总信息
+                // 人均次数不足 1 时保留两位，否则报表上会写成 0.0，看起来像没点过名
+                const avgCalls = stats.averageCalls;
+                const avgText = avgCalls > 0 && avgCalls < 1 ? avgCalls.toFixed(2) : avgCalls.toFixed(1);
                 const summaryData = [
                     { '项目': '统计周期开始日期', '数值': this.storage.getStats().cycleStart },
                     { '项目': '学生总数', '数值': stats.totalStudents },
                     { '项目': '总点名次数', '数值': stats.totalCalls },
-                    { '项目': '平均被点次数', '数值': stats.averageCalls.toFixed(1) },
+                    { '项目': '平均被点次数', '数值': avgText },
                     { '项目': '点名分布', '数值': this.formatCallDistribution(stats.callDistribution) }
                 ];
 

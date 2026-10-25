@@ -725,11 +725,12 @@ class RollCallApp {
      * 切换主题（浅色/深色）
      */
     toggleTheme() {
-        const isLight = document.body.classList.toggle('light-theme');
+        // 默认（无类名）为浅色纸面主题；dark-theme 为夜间主题
+        const isDark = document.body.classList.toggle('dark-theme');
         try {
-            localStorage.setItem('roll-call-theme', isLight ? 'light' : 'dark');
+            localStorage.setItem('roll-call-theme', isDark ? 'dark' : 'light');
         } catch (e) {}
-        NotificationSystem.info(isLight ? '已切换至浅色日间模式' : '已切换至深色极客模式');
+        NotificationSystem.info(isDark ? '已切换至深色主题' : '已切换至浅色主题');
     }
 
     /**
@@ -738,8 +739,8 @@ class RollCallApp {
     restoreTheme() {
         try {
             const savedTheme = localStorage.getItem('roll-call-theme');
-            if (savedTheme === 'light') {
-                document.body.classList.add('light-theme');
+            if (savedTheme === 'dark') {
+                document.body.classList.add('dark-theme');
             }
         } catch (e) {}
     }
@@ -1449,7 +1450,7 @@ class RollCallApp {
         if (!tbody) return;
 
         if (this.state.students.length === 0) {
-            tbody.replaceChildren(this.buildEmptyRow('📂', '暂无数据，请先导入或点击上方“示例”体验'));
+            tbody.replaceChildren(this.buildEmptyRow('—', '暂无数据，请先导入或点击上方「示例」体验'));
             return;
         }
 
@@ -1609,7 +1610,16 @@ class RollCallApp {
 
         if (this.elements.totalCalls) this.elements.totalCalls.textContent = stats.totalCalls;
         if (this.elements.totalStudents) this.elements.totalStudents.textContent = stats.totalStudents;
-        if (this.elements.avgCalls) this.elements.avgCalls.textContent = stats.averageCalls.toFixed(1);
+        // 人均次数常小于 1（30 人点 1 次 = 0.03），保留一位会显示成 0.0，
+        // 等于告诉使用者「这次点名没有发生」，所以小于 1 时保留两位
+        if (this.elements.avgCalls) {
+            const avg = stats.averageCalls || 0;
+            let avgText = '0';
+            if (stats.totalCalls > 0) {
+                avgText = avg < 1 ? avg.toFixed(2) : avg.toFixed(1);
+            }
+            this.elements.avgCalls.textContent = avgText;
+        }
 
         // 点名覆盖率
         if (this.elements.coverageRate) {
@@ -1669,9 +1679,14 @@ class RollCallApp {
             if (stats.totalStudents === 0) {
                 statsGrid.replaceChildren(this.buildEmptyState('暂无统计数据'));
             } else {
-                let filtered = stats.students;
+                // 按被点次数降序：这张网格的任务是「看出谁被点得多」，
+                // 而不是把名册原样再列一遍
+                let filtered = stats.students
+                    .slice()
+                    .sort((a, b) => (b.callCount || 0) - (a.callCount || 0)
+                        || String(a.seat).localeCompare(String(b.seat), 'zh-Hans-CN', { numeric: true }));
                 if (searchTerm) {
-                    filtered = stats.students.filter(s =>
+                    filtered = filtered.filter(s =>
                         s.name.toLowerCase().includes(searchTerm) ||
                         String(s.seat).includes(searchTerm)
                     );
@@ -1685,6 +1700,9 @@ class RollCallApp {
                     filtered.forEach(student => {
                         const card = document.createElement('div');
                         card.className = 'stat-item-card';
+                        if (!student.callCount) {
+                            card.classList.add('is-zero');
+                        }
 
                         const header = document.createElement('div');
                         header.className = 'stat-item-header';

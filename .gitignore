@@ -1,5 +1,6 @@
-# Claude Code 配置文件（保留 CLAUDE.md 作为项目文档）
+# 工具配置文件（保留 CLAUDE.md / AGENTS.md 作为项目文档）
 .claude/
+.workbuddy/
 
 # 操作系统文件
 .DS_Store

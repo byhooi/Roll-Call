@@ -4,56 +4,81 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>班级点名系统 - 智能公平随机点名</title>
+    <title>点名册 · 公平随机点名</title>
     <meta name="description" content="纯前端班级公平随机点名系统，支持 Excel 名单导入导出与点名统计，数据保存在浏览器本地。">
     <!-- Style -->
     <link rel="stylesheet" href="css/style.css">
 </head>
 
 <body>
-    <div class="background-mesh">
-        <div class="mesh-1"></div>
-        <div class="mesh-2"></div>
-        <div class="mesh-3"></div>
-    </div>
-
     <div class="app-container" id="app-container">
         <header class="app-header">
-            <div class="logo">
-                <span class="logo-icon">🎓</span>
-                <h1>班级点名系统</h1>
+            <div class="brand">
+                <span class="brand-stamp" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round">
+                        <path d="M3.5 3.5h17v17h-17z"></path>
+                        <path d="M3.5 9.2h17M3.5 14.8h17M9.2 3.5v17M14.8 3.5v17"></path>
+                        <rect x="9.2" y="9.2" width="5.6" height="5.6" fill="currentColor" stroke="none"></rect>
+                    </svg>
+                </span>
+                <span class="brand-text">
+                    <h1 class="brand-name">点名册</h1>
+                    <span class="brand-sub">Roll Call</span>
+                </span>
             </div>
 
-            <nav class="main-nav">
-                <button class="nav-btn active" data-tab="roll-call">
-                    <span class="icon">🎯</span>
+            <nav class="main-nav" aria-label="主导航">
+                <button type="button" class="nav-btn active" data-tab="roll-call">
+                    <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+                        <circle cx="12" cy="12" r="8.2"></circle>
+                        <circle cx="12" cy="12" r="2.6"></circle>
+                    </svg>
                     <span>点名</span>
                 </button>
-                <button class="nav-btn" data-tab="students">
-                    <span class="icon">👥</span>
-                    <span>管理</span>
+                <button type="button" class="nav-btn" data-tab="students">
+                    <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true">
+                        <circle cx="9" cy="8.4" r="3.2"></circle>
+                        <path d="M3.6 19.2c0-3 2.4-5 5.4-5s5.4 2 5.4 5"></path>
+                        <path d="M15.8 5.6a3.2 3.2 0 0 1 0 5.6M17.6 14.6c2 .7 3.1 2.3 3.1 4.6"></path>
+                    </svg>
+                    <span>名册</span>
                 </button>
-                <button class="nav-btn" data-tab="statistics">
-                    <span class="icon">📊</span>
+                <button type="button" class="nav-btn" data-tab="statistics">
+                    <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true">
+                        <path d="M4 20.5h16"></path>
+                        <path d="M7.5 20.5v-6M12 20.5V7.5M16.5 20.5v-9"></path>
+                    </svg>
                     <span>统计</span>
                 </button>
             </nav>
 
             <div class="header-tools">
-                <button id="toggle-sound-btn" class="tool-btn active" title="点击切换音效" aria-label="音效开关">
-                    <span class="tool-icon">🔊</span>
+                <button type="button" id="toggle-sound-btn" class="tool-btn active" title="点击切换音效" aria-label="音效开关">
+                    <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M4 9.6h3.3L12 5.4v13.2L7.3 14.4H4z"></path>
+                        <path d="M15.6 9.4a4 4 0 0 1 0 5.2"></path>
+                    </svg>
                     <span class="tool-text">音效</span>
                 </button>
-                <button id="toggle-voice-btn" class="tool-btn" title="点击切换姓名语音播报" aria-label="语音播报开关">
-                    <span class="tool-icon">🗣️</span>
+                <button type="button" id="toggle-voice-btn" class="tool-btn" title="点击切换姓名语音播报" aria-label="语音播报开关">
+                    <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <rect x="9.2" y="3.4" width="5.6" height="10" rx="2.8"></rect>
+                        <path d="M5.8 11.6a6.2 6.2 0 0 0 12.4 0"></path>
+                        <path d="M12 17.8v2.8"></path>
+                    </svg>
                     <span class="tool-text">播报</span>
                 </button>
-                <button id="toggle-theme-btn" class="tool-btn" title="切换深色/浅色高对比度主题" aria-label="切换主题">
-                    <span class="tool-icon">🌓</span>
+                <button type="button" id="toggle-theme-btn" class="tool-btn" title="切换深色 / 浅色主题" aria-label="切换主题">
+                    <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+                        <circle cx="12" cy="12" r="8"></circle>
+                        <path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor" stroke="none"></path>
+                    </svg>
                     <span class="tool-text">主题</span>
                 </button>
-                <button id="toggle-fullscreen-btn" class="tool-btn" title="大屏幕全屏沉浸投影" aria-label="全屏展示">
-                    <span class="tool-icon">⛶</span>
+                <button type="button" id="toggle-fullscreen-btn" class="tool-btn" title="全屏投影模式" aria-label="全屏展示">
+                    <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M9 4.5H4.5V9M15 4.5h4.5V9M15 19.5h4.5V15M9 19.5H4.5V15"></path>
+                    </svg>
                     <span class="tool-text">全屏</span>
                 </button>
             </div>
@@ -62,32 +87,33 @@
         <main class="content-area">
             <!-- 点名页面 -->
             <section id="roll-call" class="view-section active">
-                <div class="glass-card main-card">
-                    <!-- 连抽模式选择器 -->
-                    <div class="roll-mode-bar">
-                        <span class="mode-label">抽取模式：</span>
-                        <div class="mode-chips" id="mode-chips">
-                            <button class="mode-chip active" data-count="1">单人 (1人)</button>
-                            <button class="mode-chip" data-count="2">双人组 (2人)</button>
-                            <button class="mode-chip" data-count="3">三人组 (3人)</button>
-                            <button class="mode-chip" data-count="5">五人连抽 (5人)</button>
+                <div class="panel main-card">
+                    <div class="stage-bar">
+                        <div class="mode-group">
+                            <span class="eyebrow">抽取人数</span>
+                            <div class="mode-chips" id="mode-chips" role="group" aria-label="抽取人数">
+                                <button type="button" class="mode-chip active" data-count="1">1 人</button>
+                                <button type="button" class="mode-chip" data-count="2">2 人</button>
+                                <button type="button" class="mode-chip" data-count="3">3 人</button>
+                                <button type="button" class="mode-chip" data-count="5">5 人</button>
+                            </div>
                         </div>
+                        <div class="status-badge" id="roll-status">准备就绪</div>
                     </div>
 
                     <div class="roll-display-area" id="roll-display-area">
-                        <div class="status-badge" id="roll-status">准备就绪</div>
                         <div id="selected-student" class="result-box">
-                            <span class="placeholder-text">等待点名...</span>
+                            <span class="placeholder-text">等待点名</span>
                         </div>
                     </div>
 
                     <div class="control-area">
-                        <button id="roll-btn" class="action-btn primary-btn pulse-glow" aria-label="开始随机点名">
-                            <span class="btn-text">开始随机点名</span>
-                            <div class="btn-bg"></div>
+                        <button type="button" id="roll-btn" class="action-btn primary-btn" aria-label="开始随机点名">
+                            <span class="btn-text">开始点名</span>
                         </button>
                         <div class="keyboard-hint">
-                            <kbd>Space</kbd> 按空格键快速点名
+                            <kbd>Space</kbd>
+                            <span>空格键快速点名</span>
                         </div>
                     </div>
                     <div id="student-info" class="student-meta fade-in"></div>
@@ -96,37 +122,62 @@
 
             <!-- 学生管理页面 -->
             <section id="students" class="view-section">
-                <div class="glass-card table-card">
+                <div class="panel table-card">
                     <div class="card-header">
-                        <h2>学生名册 <span class="badge" id="student-count">0</span></h2>
+                        <h2>学生名册<span class="count-note">共 <span id="student-count">0</span> 人</span></h2>
                         <div class="header-actions">
-                            <button id="import-excel-btn" class="icon-btn" title="导入 Excel 文件">
-                                📤 导入
+                            <button type="button" id="import-excel-btn" class="icon-btn" title="导入 Excel 文件">
+                                <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <path d="M12 3.6v10M8.2 10l3.8 3.8L15.8 10"></path>
+                                    <path d="M4.6 16.4v2.4a1.6 1.6 0 0 0 1.6 1.6h11.6a1.6 1.6 0 0 0 1.6-1.6v-2.4"></path>
+                                </svg>
+                                导入
                             </button>
-                            <button id="download-template-btn" class="icon-btn" title="下载标准导入模板">
-                                📥 模板
+                            <button type="button" id="download-template-btn" class="icon-btn" title="下载标准导入模板">
+                                <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <path d="M6.6 3.6h6.2l4.6 4.6v12.2H6.6z"></path>
+                                    <path d="M12.6 3.6v4.8h4.8"></path>
+                                    <path d="M9.4 13h5.2M9.4 16.2h5.2"></path>
+                                </svg>
+                                模板
                             </button>
-                            <button id="load-sample-btn" class="icon-btn" title="一键填入演示学生名单">
-                                ✨ 示例
+                            <button type="button" id="load-sample-btn" class="icon-btn" title="一键填入演示学生名单">
+                                <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true">
+                                    <path d="M11 4.2l1.7 4.6 4.6 1.7-4.6 1.7L11 16.8 9.3 12.2 4.7 10.5l4.6-1.7z"></path>
+                                    <path d="M17.6 15.2l.8 2.1 2.1.8-2.1.8-.8 2.1-.8-2.1-2.1-.8 2.1-.8z"></path>
+                                </svg>
+                                示例
                             </button>
-                            <button id="add-student-btn" class="icon-btn" title="手动添加新学生">
-                                ➕ 添加
+                            <button type="button" id="add-student-btn" class="icon-btn" title="手动添加新学生">
+                                <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true">
+                                    <path d="M12 5.2v13.6M5.2 12h13.6"></path>
+                                </svg>
+                                添加
                             </button>
-                            <button id="clear-data-btn" class="icon-btn danger" title="清空所有学生与历史">
-                                🗑️ 清空
+                            <span class="action-divider" aria-hidden="true"></span>
+                            <button type="button" id="clear-data-btn" class="icon-btn danger" title="清空所有学生与历史">
+                                <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <path d="M4.6 7h14.8M9.6 7V4.6h4.8V7"></path>
+                                    <path d="M6.6 7l1 13h8.8l1-13"></path>
+                                    <path d="M10.2 10.8v6M13.8 10.8v6"></path>
+                                </svg>
+                                清空
                             </button>
-                            <input type="file" id="import-excel" accept=".xlsx,.xls" style="display:none;">
+                            <input type="file" id="import-excel" class="file-input" accept=".xlsx,.xls">
                         </div>
                     </div>
 
                     <!-- 搜索与排序工具栏 -->
                     <div class="table-toolbar">
                         <div class="search-box">
-                            <span class="search-icon">🔍</span>
-                            <input type="text" id="students-search" class="search-input-modern" placeholder="搜索姓名或座位号...">
+                            <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true">
+                                <circle cx="11" cy="11" r="6.2"></circle>
+                                <path d="M15.6 15.6L20 20"></path>
+                            </svg>
+                            <input type="text" id="students-search" class="search-input-modern" placeholder="搜索姓名或座位号">
                         </div>
                         <div class="sort-box">
-                            <label for="students-sort">排序方式：</label>
+                            <label for="students-sort">排序</label>
                             <select id="students-sort" class="sort-select">
                                 <option value="seat-asc">座位号 (升序)</option>
                                 <option value="seat-desc">座位号 (降序)</option>
@@ -141,19 +192,19 @@
                         <table id="students-table" class="modern-table">
                             <thead>
                                 <tr>
-                                    <th>座位号</th>
-                                    <th>姓名</th>
-                                    <th>被点次数</th>
-                                    <th>最后点名时间</th>
-                                    <th>操作</th>
+                                    <th scope="col">座位号</th>
+                                    <th scope="col">姓名</th>
+                                    <th scope="col">被点次数</th>
+                                    <th scope="col">最后点名</th>
+                                    <th scope="col">操作</th>
                                 </tr>
                             </thead>
                             <tbody id="students-tbody">
                                 <tr>
                                     <td colspan="5" class="empty-state">
                                         <div class="empty-content">
-                                            <span class="empty-icon">📂</span>
-                                            <p>暂无数据，请先导入或点击上方“示例”体验</p>
+                                            <span class="empty-icon">—</span>
+                                            <p>暂无数据，请先导入或点击上方「示例」体验</p>
                                         </div>
                                     </td>
                                 </tr>
@@ -165,65 +216,90 @@
 
             <!-- 统计分析页面 -->
             <section id="statistics" class="view-section">
-                <div class="stats-overview">
-                    <div class="glass-card stat-item">
-                        <div class="stat-icon purple">🎲</div>
+                <div class="stats-strip">
+                    <div class="stat-item">
+                        <span class="stat-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true">
+                                <circle cx="12" cy="12" r="8.2"></circle>
+                                <circle cx="12" cy="12" r="2.6"></circle>
+                            </svg>
+                        </span>
                         <div class="stat-info">
                             <h3>总点名次数</h3>
                             <p id="total-calls" class="stat-value">0</p>
                         </div>
                     </div>
-                    <div class="glass-card stat-item">
-                        <div class="stat-icon blue">👥</div>
+                    <div class="stat-item">
+                        <span class="stat-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true">
+                                <circle cx="9" cy="8.4" r="3.2"></circle>
+                                <path d="M3.6 19.2c0-3 2.4-5 5.4-5s5.4 2 5.4 5"></path>
+                                <path d="M15.8 5.6a3.2 3.2 0 0 1 0 5.6M17.6 14.6c2 .7 3.1 2.3 3.1 4.6"></path>
+                            </svg>
+                        </span>
                         <div class="stat-info">
                             <h3>学生总数</h3>
                             <p id="total-students" class="stat-value">0</p>
                         </div>
                     </div>
-                    <div class="glass-card stat-item">
-                        <div class="stat-icon pink">📈</div>
+                    <div class="stat-item">
+                        <span class="stat-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true">
+                                <path d="M4 20.5h16"></path>
+                                <path d="M7.5 20.5v-6M12 20.5V7.5M16.5 20.5v-9"></path>
+                            </svg>
+                        </span>
                         <div class="stat-info">
-                            <h3>平均点名</h3>
+                            <h3>人均次数</h3>
                             <p id="avg-calls" class="stat-value">0</p>
                         </div>
                     </div>
-                    <div class="glass-card stat-item">
-                        <div class="stat-icon teal">🎯</div>
+                    <div class="stat-item">
+                        <span class="stat-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M4.6 12.4l4.4 4.4 10-10.4"></path>
+                            </svg>
+                        </span>
                         <div class="stat-info">
                             <h3>点名覆盖率</h3>
                             <p id="coverage-rate" class="stat-value">0%</p>
                         </div>
                     </div>
+                    <!-- 分布概览：与四项汇总同处一块账目栏，不再单独飘一张只有一条数据的卡 -->
+                    <div class="distribution-row">
+                        <div class="distribution-header">
+                            <h3>点名频次分布</h3>
+                            <span class="distribution-tip">全班各被点次数的人数占比</span>
+                        </div>
+                        <div id="distribution-bar" class="distribution-bars">
+                            <span class="empty-subtext">暂无分布数据</span>
+                        </div>
+                    </div>
                 </div>
 
-                <!-- 分布概览条 -->
-                <div class="glass-card distribution-card">
-                    <div class="distribution-header">
-                        <h3>📊 点名频次分布情况</h3>
-                        <span class="distribution-tip">展示全班各被点次数的人数占比</span>
-                    </div>
-                    <div id="distribution-bar" class="distribution-bars">
-                        <span class="empty-subtext">暂无分布数据</span>
-                    </div>
-                </div>
-
-                <div class="glass-card chart-card">
+                <div class="panel chart-card">
                     <div class="card-header">
-                        <div class="stats-view-switch">
-                            <button id="stats-view-cards" class="sm-tab-btn active">学生卡片</button>
-                            <button id="stats-view-history" class="sm-tab-btn">最近点名流水</button>
+                        <div class="stats-view-switch" role="group" aria-label="统计视图">
+                            <button type="button" id="stats-view-cards" class="sm-tab-btn active">学生卡片</button>
+                            <button type="button" id="stats-view-history" class="sm-tab-btn">点名流水</button>
                         </div>
                         <div class="header-actions">
-                            <input type="text" id="stats-search" class="search-input" placeholder="🔍 搜索姓名或座位号...">
-                            <button id="export-stats-btn" class="sm-btn">导出报表</button>
-                            <button id="export-backup-btn" class="sm-btn">备份 JSON</button>
-                            <button id="reset-stats-btn" class="sm-btn danger-text">重置周期</button>
+                            <div class="search-box compact">
+                                <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true">
+                                    <circle cx="11" cy="11" r="6.2"></circle>
+                                    <path d="M15.6 15.6L20 20"></path>
+                                </svg>
+                                <input type="text" id="stats-search" class="search-input-modern" placeholder="搜索姓名或座位号">
+                            </div>
+                            <button type="button" id="export-stats-btn" class="sm-btn">导出报表</button>
+                            <button type="button" id="export-backup-btn" class="sm-btn">备份 JSON</button>
+                            <button type="button" id="reset-stats-btn" class="sm-btn danger-text">重置周期</button>
                         </div>
                     </div>
                     <div id="stats-grid" class="stats-grid-container">
                         <div class="empty-state">暂无统计数据</div>
                     </div>
-                    <div id="stats-history-list" class="stats-history-container" style="display: none;">
+                    <div id="stats-history-list" class="stats-history-container" hidden>
                         <div class="empty-state">暂无点名历史流水</div>
                     </div>
                 </div>
@@ -232,10 +308,10 @@
 
         <!-- 添加学生弹窗 -->
         <div id="add-student-modal" class="modal-overlay">
-            <div class="glass-modal">
+            <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="add-student-title">
                 <div class="modal-header">
-                    <h3>添加新学生</h3>
-                    <button class="close-modal" id="cancel-add-btn" aria-label="关闭">×</button>
+                    <h3 id="add-student-title">添加学生</h3>
+                    <button type="button" class="close-modal" id="cancel-add-btn" aria-label="关闭">×</button>
                 </div>
                 <form id="add-student-form">
                     <div class="form-group">
@@ -244,10 +320,10 @@
                     </div>
                     <div class="form-group">
                         <label for="student-seat">座位号</label>
-                        <input type="number" id="student-seat" required min="1" placeholder="例如: 101">
+                        <input type="number" id="student-seat" required min="1" placeholder="例如 101">
                     </div>
                     <div class="modal-footer">
-                        <button type="submit" class="action-btn primary-btn full-width">确认添加</button>
+                        <button type="submit" class="btn btn-primary full-width">确认添加</button>
                     </div>
                 </form>
             </div>
@@ -255,10 +331,10 @@
 
         <!-- 编辑学生弹窗 -->
         <div id="edit-student-modal" class="modal-overlay">
-            <div class="glass-modal">
+            <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="edit-student-title">
                 <div class="modal-header">
-                    <h3>编辑学生信息</h3>
-                    <button class="close-modal" id="cancel-edit-btn" aria-label="关闭">×</button>
+                    <h3 id="edit-student-title">编辑学生</h3>
+                    <button type="button" class="close-modal" id="cancel-edit-btn" aria-label="关闭">×</button>
                 </div>
                 <form id="edit-student-form">
                     <input type="hidden" id="edit-student-id">
@@ -268,17 +344,17 @@
                     </div>
                     <div class="form-group">
                         <label for="edit-student-seat">座位号</label>
-                        <input type="number" id="edit-student-seat" required min="1" placeholder="例如: 101">
+                        <input type="number" id="edit-student-seat" required min="1" placeholder="例如 101">
                     </div>
                     <div class="modal-footer">
-                        <button type="submit" class="action-btn primary-btn full-width">保存修改</button>
+                        <button type="submit" class="btn btn-primary full-width">保存修改</button>
                     </div>
                 </form>
             </div>
         </div>
     </div>
 
-    <!-- Scripts：xlsx 改为 excel.js 内按需加载，首屏不再阻塞 -->
+    <!-- Scripts：xlsx 由 excel.js 按需加载，首屏不阻塞 -->
     <script src="js/storage.js" defer></script>
     <script src="js/algorithm.js" defer></script>
     <script src="js/excel.js" defer></script>
