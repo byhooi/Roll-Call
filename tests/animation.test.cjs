@@ -46,6 +46,7 @@ function createElement(tagName = 'div') {
 
 function createHarness({ reducedMotion = false } = {}) {
     const frames = [];
+    const timers = [];
     let now = 0;
 
     const document = {
@@ -81,7 +82,10 @@ function createHarness({ reducedMotion = false } = {}) {
             frames.push(() => callback(now));
             return frames.length;
         },
-        setTimeout: () => 0,
+        setTimeout(callback, delay) {
+            timers.push({ callback, delay });
+            return timers.length;
+        },
         clearTimeout() {},
         setInterval: () => 1,
         clearInterval() {}
@@ -102,7 +106,18 @@ function createHarness({ reducedMotion = false } = {}) {
         return count;
     };
 
-    return { app, frames, runFrames, createElement, document, fragments: [] };
+    // 执行排队中的定时器（减弱动效时的换名信号与绝对超时兜底都走这里）
+    const runTimers = (max = 50) => {
+        let count = 0;
+        while (timers.length && count < max) {
+            const next = timers.shift();
+            next.callback();
+            count++;
+        }
+        return count;
+    };
+
+    return { app, frames, timers, runFrames, runTimers, createElement, document, fragments: [] };
 }
 
 function prepareRollingHarness({ reducedMotion = false, students, count = 1 } = {}) {
@@ -117,18 +132,23 @@ function prepareRollingHarness({ reducedMotion = false, students, count = 1 } = 
     return harness;
 }
 
-test('减少动效时不播放滚动帧，直接进入结果', () => {
+test('减少动效时不连续滚动，但给出换名信号后进入结果', () => {
     const students = [{ id: '1', name: '张三', seat: 1 }];
-    const { app, frames } = prepareRollingHarness({ reducedMotion: true, students });
+    const { app, frames, runTimers } = prepareRollingHarness({ reducedMotion: true, students });
 
     let called = false;
     app.startRollingAnimation(1, () => { called = true; });
 
-    // 只渲染一帧后就请求进入结果
-    assert.equal(frames.length, 1, '只应排队一次进入结果的帧');
+    // 不排动画帧，也不加抖动类：不做连续滚动
+    assert.equal(frames.length, 0, '减少动效时不应排动画帧');
+    assert.equal(app.elements.selectedStudent.classList.contains('rolling-fast'), false, '不应播放抖动');
     assert.equal(app.elements.selectedStudent.children.length, 2);
     assert.equal(app.elements.selectedStudent.children[0].textContent, '张三');
-    assert.equal(app.elements.selectedStudent.classList.contains('rolling-fast'), false);
+
+    // 但要有「正在抽取」的信号，而不是按下去毫无反馈
+    assert.equal(called, false, '不应立刻进入结果');
+    runTimers();
+    assert.equal(called, true, '换名信号结束后进入结果');
 });
 
 test('滚动动画复用同一批节点，只更新文本内容', () => {

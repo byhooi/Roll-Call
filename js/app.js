@@ -972,12 +972,12 @@ class RollCallApp {
      * 开始滚动动画。
      * 使用 requestAnimationFrame + 时间驱动，帧率自适应（120Hz 屏幕更均匀）；
      * 只创建一次节点，之后仅更新 textContent，避免每帧重建 DOM。
+     * 定时器与绝对超时兜底：rAF 被节流或暂停时仍能滚动并落定，按钮不会卡在禁用态。
      */
     startRollingAnimation(count, callback) {
         const box = this.elements.selectedStudent;
         const students = this.state.students;
         const reducedMotion = this.prefersReducedMotion();
-        const tickInterval = 45;
         const duration = reducedMotion
             ? 0
             : Math.max(500, Math.min(950, students.length * 20 + 450));
@@ -1033,10 +1033,22 @@ class RollCallApp {
             }
         };
 
-        // 减少动态效果时只渲染一帧，直接进入结果
+        // 减少动态效果时不做连续滚动，但仍给出几次换名的「正在抽取」信号。
+        // 之前这里只渲染一帧，在开了「减弱动态效果」的手机上按下去毫无反馈，
+        // 看起来就像点名功能没生效；换名不是位移/缩放类动效，保留少量不影响舒适度。
         if (reducedMotion || duration === 0) {
-            renderTick();
-            requestAnimationFrame(callback);
+            const steps = 4;
+            let step = 0;
+            const advance = () => {
+                renderTick();
+                step++;
+                if (step < steps) {
+                    setTimeout(advance, 80);
+                } else {
+                    callback();
+                }
+            };
+            advance();
             return;
         }
 
@@ -1044,29 +1056,65 @@ class RollCallApp {
         box.setAttribute('aria-busy', 'true');
 
         const startTime = performance.now();
-        let lastTickTime = 0;
+        let lastTickTime = startTime;
+        let finished = false;
+        let fallbackTimer = null;
+        let safetyTimer = null;
+
+        // 落定前减速：换名间隔从 45ms 拉到约 110ms，读感是「抽签停住」而不是突然跳到结果
+        const intervalFor = (elapsed) => {
+            const progress = Math.min(1, elapsed / duration);
+            return 45 + 65 * progress * progress;
+        };
+
+        const tick = (now) => {
+            lastTickTime = now;
+            this.sound.playTick();
+            renderTick();
+        };
+
+        const finish = () => {
+            if (finished) return;
+            finished = true;
+            if (fallbackTimer) clearInterval(fallbackTimer);
+            if (safetyTimer) clearTimeout(safetyTimer);
+            box.classList.remove('rolling-fast');
+            box.removeAttribute('aria-busy');
+            callback();
+        };
 
         const frame = (now) => {
+            if (finished) return;
             const elapsed = now - startTime;
 
             if (elapsed >= duration) {
-                box.classList.remove('rolling-fast');
-                box.removeAttribute('aria-busy');
-                requestAnimationFrame(callback);
+                finish();
                 return;
             }
 
-            if (now - lastTickTime >= tickInterval) {
-                lastTickTime = now;
-                this.sound.playTick();
-                renderTick();
-            }
+            if (now - lastTickTime >= intervalFor(elapsed)) tick(now);
 
             requestAnimationFrame(frame);
         };
 
         renderTick();
         requestAnimationFrame(frame);
+
+        // 兜底一：部分移动端、省电模式、内嵌 WebView 会节流或暂停 rAF，
+        // 这时用定时器照常驱动换名，保证「滚动抽人」这件事在手机上也看得见。
+        fallbackTimer = setInterval(() => {
+            if (finished) return;
+            const now = performance.now();
+            const elapsed = now - startTime;
+            if (elapsed >= duration) {
+                finish();
+                return;
+            }
+            if (now - lastTickTime >= intervalFor(elapsed)) tick(now);
+        }, 45);
+
+        // 兜底二：绝对超时。无论动画帧是否被暂停，都必须落定，按钮不能被永久禁用
+        safetyTimer = setTimeout(finish, duration + 300);
     }
 
     /**
