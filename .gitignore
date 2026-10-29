@@ -42,3 +42,9 @@ test-data/
 dist/
 build/
 .cache/
+
+# AI 助手说明文件（本地使用，不纳入版本控制）
+CLAUDE.md
+claude.md
+AGENTS.md
+agents.md
