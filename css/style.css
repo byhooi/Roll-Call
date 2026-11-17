@@ -43,9 +43,12 @@
     --font-serif: "Songti SC", "Source Han Serif SC", "Noto Serif SC", "SimSun", "STSong", serif;
     --font-mono: ui-monospace, "SFMono-Regular", "Cascadia Mono", "Consolas", "Menlo", monospace;
 
-    /* 尺度 */
+    /* 尺度：圆角只留两级（控件 4px / 卡片 6px），不再出现 3/8/10px 的散值 */
     --radius-card: 6px;
     --radius-ctl: 4px;
+    /* 字号：注释级（表头、导航、说明）统一 12px。
+       原来 0.62/0.68/0.7/0.72/0.74 五档混用，最小只有 9.9px，投影和低分屏上都糊 */
+    --fs-meta: 0.75rem;
     --spacing-xs: 0.5rem;
     --spacing-sm: 1rem;
     --spacing-md: 1.5rem;
@@ -138,7 +141,7 @@ select {
 ::-webkit-scrollbar-thumb {
     background: var(--line-strong);
     border: 3px solid var(--paper);
-    border-radius: 10px;
+    border-radius: var(--radius-card);
 }
 
 ::-webkit-scrollbar-thumb:hover {
@@ -158,14 +161,18 @@ svg.ico {
 /* =========================================
    3. App Shell
    ========================================= */
+/* 应用外壳必须有一个确定高度，否则内部的 flex: 1 无参照可分配：
+   卡片会退化成按内容撑开，整页跟着滚，名册内部的表头 sticky 也随之失效。
+   height（而不是 min-height）定在视口高度上，内容超出时由页面滚动兜底——
+   刻意不加 overflow: auto，避免和表格内部的滚动容器嵌套。 */
 .app-container {
     max-width: 1200px;
     margin: 0 auto;
     padding: 0 var(--spacing-md) var(--spacing-md);
     display: flex;
     flex-direction: column;
-    min-height: 100vh;
-    min-height: 100dvh;
+    height: 100vh;
+    height: 100dvh;
 }
 
 /* ---------- Header ---------- */
@@ -208,7 +215,7 @@ svg.ico {
 .brand-stamp {
     width: 34px;
     height: 34px;
-    border-radius: 3px;
+    border-radius: var(--radius-ctl);
     background: var(--accent);
     color: var(--paper);
     display: grid;
@@ -234,7 +241,7 @@ svg.ico {
 }
 
 .brand-sub {
-    font-size: 0.62rem;
+    font-size: var(--fs-meta);
     font-weight: 600;
     letter-spacing: 0.22em;
     text-transform: uppercase;
@@ -312,11 +319,14 @@ svg.ico {
     flex: 1;
     display: flex;
     flex-direction: column;
+    /* 中间层默认 min-height: auto，不清零就撑不住收缩，卡片会顶穿视口 */
+    min-height: 0;
 }
 
 .view-section {
     display: none;
     flex: 1;
+    min-height: 0;
 }
 
 .view-section.active {
@@ -421,7 +431,7 @@ svg.ico {
 }
 
 .eyebrow {
-    font-size: 0.68rem;
+    font-size: var(--fs-meta);
     font-weight: 600;
     letter-spacing: 0.16em;
     text-transform: uppercase;
@@ -468,7 +478,7 @@ svg.ico {
     display: inline-flex;
     align-items: center;
     gap: 7px;
-    font-size: 0.74rem;
+    font-size: var(--fs-meta);
     font-weight: 600;
     letter-spacing: 0.1em;
     color: var(--ink-3);
@@ -514,6 +524,7 @@ svg.ico {
 
 /* ---------- 展示区 ---------- */
 .roll-display-area {
+    position: relative;
     flex: 1;
     display: flex;
     align-items: center;
@@ -523,6 +534,8 @@ svg.ico {
 }
 
 .result-box {
+    position: relative;
+    z-index: 1;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -546,8 +559,10 @@ svg.ico {
     word-break: break-word;
 }
 
+/* 座位号是和大名字配套的信息，得跟着一起放大；原来固定 0.9rem，
+   全屏投影下名字 176px、座位号只有 17.6px，后排根本看不见 */
 .result-box .seat {
-    font-size: 0.9rem;
+    font-size: clamp(0.9rem, 1.15vw, 1.5rem);
     font-weight: 600;
     letter-spacing: 0.12em;
     color: var(--ink-2);
@@ -596,7 +611,7 @@ svg.ico {
 }
 
 .multi-student-card .card-seat {
-    font-size: 0.72rem;
+    font-size: var(--fs-meta);
     font-weight: 600;
     letter-spacing: 0.1em;
     color: var(--ink-3);
@@ -612,7 +627,7 @@ svg.ico {
 }
 
 .multi-student-card .card-count {
-    font-size: 0.7rem;
+    font-size: var(--fs-meta);
     color: var(--ink-3);
     border-top: 1px solid var(--line);
     padding-top: 7px;
@@ -690,20 +705,20 @@ svg.ico {
 
 kbd {
     font-family: var(--font-mono);
-    font-size: 0.68rem;
+    font-size: var(--fs-meta);
     font-weight: 600;
     letter-spacing: 0.04em;
     padding: 2px 6px;
     border: 1px solid var(--line-strong);
     border-bottom-width: 2px;
-    border-radius: 3px;
+    border-radius: var(--radius-ctl);
     color: var(--ink-2);
     background: var(--surface);
 }
 
 .student-meta {
     min-height: 40px;
-    padding: 0 24px 16px;
+    padding: 0 24px 8px;
     text-align: center;
     font-size: 0.84rem;
     color: var(--ink-2);
@@ -712,9 +727,31 @@ kbd {
 .student-meta strong {
     font-size: 1rem;
     font-weight: 700;
-    color: var(--accent);
+    color: var(--ink);
     font-variant-numeric: tabular-nums;
     padding: 0 2px;
+}
+
+/* 触屏设备没有空格键：这行提示只会白占主按钮下方最宝贵的一行 */
+@media (hover: none) and (pointer: coarse) {
+    .keyboard-hint {
+        display: none;
+    }
+}
+
+/* 候选池提示：常驻在卡片底部，安静一级——它提供的是「凭什么公平」的证据，
+   不是点名结果，所以不能和结果抢注意力 */
+.fairness-note {
+    margin-top: auto;
+    padding: 0 24px 14px;
+    font-size: var(--fs-meta);
+    color: var(--ink-3);
+    text-align: center;
+    letter-spacing: 0.04em;
+}
+
+.fairness-note[hidden] {
+    display: none;
 }
 
 /* =========================================
@@ -758,7 +795,7 @@ kbd {
 .btn-sm {
     background: none;
     border: 1px solid transparent;
-    border-radius: 3px;
+    border-radius: var(--radius-ctl);
     padding: 3px 7px;
     font-size: 0.79rem;
     font-weight: 600;
@@ -778,12 +815,17 @@ kbd {
     background: var(--paper-2);
 }
 
+/* 行内「删除」与工具栏「清空」同一套规则：常态中性，悬停/键盘聚焦才转红。
+   30 行名单如果每行一颗红按钮，页面最抢眼的颜色就成了破坏性操作，
+   而这一页的正事是看名字和被点次数。 */
 .btn-sm.btn-danger {
-    color: var(--danger);
+    color: var(--ink-2);
     background: none;
 }
 
-.btn-sm.btn-danger:hover {
+.btn-sm.btn-danger:hover,
+.btn-sm.btn-danger:focus-visible {
+    color: var(--danger);
     background: var(--danger-soft);
 }
 
@@ -820,13 +862,15 @@ kbd {
    7. Student Management
    ========================================= */
 /* 名册占据视口剩余高度并在内部滚动：表头才能粘住，页头也不必跟着滚。
-   同时限制行长——5 个短字段铺满 1150px 时，空白会把一行拉成两次扫视。 */
+   同时限制行长——5 个短字段铺满 1150px 时，空白会把一行拉成两次扫视。
+   高度由 flex 分配，不再用 calc(100dvh - 120px) 这类减法：
+   页头一旦换行（769–1040px 区间导航会掉到第二行），写死的偏移就会把卡片顶出视口。
+   min-height 保底：屏幕太矮时宁可整页滚动，也不把表格压成一两行。 */
 .table-card {
     display: flex;
     flex-direction: column;
-    flex: 0 0 auto;
+    flex: 1 1 auto;
     width: 100%;
-    height: calc(100dvh - 120px);
     min-height: 440px;
     max-width: 960px;
     margin-inline: auto;
@@ -882,12 +926,14 @@ kbd {
     color: var(--ink-3);
 }
 
+/* 排序标签压在 paper-2 底色上，--ink-3 只有 4.3:1（白底上才是 4.9）；
+   抬到次级色，顺便让「排序」这个标签更清楚 */
 .sort-box {
     display: flex;
     align-items: center;
     gap: 8px;
     font-size: 0.78rem;
-    color: var(--ink-3);
+    color: var(--ink-2);
     font-weight: 600;
     letter-spacing: 0.04em;
 }
@@ -964,7 +1010,7 @@ kbd {
     background: var(--surface);
     padding: 9px 20px;
     text-align: left;
-    font-size: 0.68rem;
+    font-size: var(--fs-meta);
     font-weight: 600;
     letter-spacing: 0.14em;
     text-transform: uppercase;
@@ -1063,6 +1109,14 @@ kbd {
     line-height: 1;
 }
 
+/* 空状态里的「恢复上次数据」：贴着说明文字，做成安静的次要动作 */
+.empty-action {
+    margin-top: 4px;
+    padding: 5px 10px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-ctl);
+}
+
 .file-input {
     display: none;
 }
@@ -1075,6 +1129,8 @@ kbd {
 .stats-strip {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
+    /* 不许被同一列里的图表卡挤扁：它是账目栏，不是弹性留白 */
+    flex: none;
     background: var(--surface);
     border: 1px solid var(--line);
     border-radius: var(--radius-card);
@@ -1110,11 +1166,12 @@ kbd {
 }
 
 .stat-info h3 {
-    font-size: 0.68rem;
+    font-size: var(--fs-meta);
     font-weight: 600;
     letter-spacing: 0.12em;
     text-transform: uppercase;
     color: var(--ink-3);
+    margin-bottom: 3px;
 }
 
 .stat-value {
@@ -1149,7 +1206,7 @@ kbd {
 }
 
 .distribution-tip {
-    font-size: 0.74rem;
+    font-size: var(--fs-meta);
     color: var(--ink-3);
 }
 
@@ -1167,7 +1224,7 @@ kbd {
     gap: 7px;
     padding: 4px 10px;
     border: 1px solid var(--line);
-    border-radius: 3px;
+    border-radius: var(--radius-ctl);
     font-size: 0.77rem;
     font-variant-numeric: tabular-nums;
 }
@@ -1181,11 +1238,13 @@ kbd {
     color: var(--ink-3);
 }
 
+/* 百分比只是普通数据，靠字重区分即可：朱红要留给「点名」这一个动作，
+   否则它在整页里反而不显眼 */
 .chip-percent {
     font-weight: 600;
-    color: var(--accent);
+    color: var(--ink-2);
     padding-left: 7px;
-    border-left: 1px solid var(--line);
+    border-left: 1px solid var(--line-strong);
 }
 
 .empty-subtext {
@@ -1194,11 +1253,13 @@ kbd {
 }
 
 /* ---------- 图表卡 ---------- */
+/* 与名册同一套高度模型：flex 吃满剩余空间，内部滚动。
+   原来的 calc(100dvh - 296px) 依赖「四项汇总恰好 167px + 页头 73px」，
+   任一环变化（窄屏汇总换行、页头换行）都会溢出。 */
 .chart-card {
     display: flex;
     flex-direction: column;
-    flex: 0 0 auto;
-    height: calc(100dvh - 296px);
+    flex: 1 1 auto;
     min-height: 360px;
     overflow: hidden;
 }
@@ -1289,7 +1350,7 @@ kbd {
     align-items: center;
     justify-content: space-between;
     gap: 8px;
-    font-size: 0.72rem;
+    font-size: var(--fs-meta);
     color: var(--ink-3);
     font-variant-numeric: tabular-nums;
 }
@@ -1320,7 +1381,7 @@ kbd {
 .stat-item-footer {
     border-top: 1px solid var(--line);
     padding-top: 6px;
-    font-size: 0.7rem;
+    font-size: var(--fs-meta);
     color: var(--ink-3);
     font-variant-numeric: tabular-nums;
 }
@@ -1343,7 +1404,7 @@ kbd {
     background: var(--surface);
     padding: 9px 20px;
     text-align: left;
-    font-size: 0.68rem;
+    font-size: var(--fs-meta);
     font-weight: 600;
     letter-spacing: 0.14em;
     text-transform: uppercase;
@@ -1392,7 +1453,7 @@ kbd {
     max-width: 400px;
     background: var(--surface);
     border: 1px solid var(--line-strong);
-    border-radius: 8px;
+    border-radius: var(--radius-card);
     padding: 20px;
     box-shadow: 0 20px 50px rgba(20, 19, 16, 0.18);
     animation: modalIn 0.18s ease-out;
@@ -1428,7 +1489,7 @@ kbd {
 .close-modal {
     background: none;
     border: 1px solid transparent;
-    border-radius: 3px;
+    border-radius: var(--radius-ctl);
     width: 26px;
     height: 26px;
     display: grid;
@@ -1452,7 +1513,7 @@ kbd {
 .form-group label {
     display: block;
     margin-bottom: 6px;
-    font-size: 0.74rem;
+    font-size: var(--fs-meta);
     font-weight: 600;
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -1556,7 +1617,7 @@ kbd {
     max-width: 420px;
     background: var(--surface);
     border: 1px solid var(--line-strong);
-    border-radius: 8px;
+    border-radius: var(--radius-card);
     padding: 20px;
     box-shadow: 0 20px 50px rgba(20, 19, 16, 0.18);
     animation: modalIn 0.18s ease-out;
@@ -1608,11 +1669,14 @@ kbd {
 /* =========================================
    10. Toast & Loading
    ========================================= */
+/* 提示条贴右上角：原来居中顶部，正好压在导航中间，还挡点击（pointer-events: auto），
+   每次切主题/音效之后有 3 秒点不动导航；手机上则直接盖住品牌标。
+   靠右 + 穿透点击后，任何断点都不会再和导航、logo 抢位置。 */
 .toast {
     position: fixed;
     top: 22px;
-    left: 50%;
-    transform: translate(-50%, -14px);
+    right: 24px;
+    transform: translateY(-14px);
     display: inline-flex;
     align-items: center;
     gap: 9px;
@@ -1628,10 +1692,11 @@ kbd {
     z-index: 99999;
     transition: transform 0.2s ease, opacity 0.2s ease;
     max-width: min(88vw, 460px);
+    pointer-events: none;
 }
 
 .toast.show {
-    transform: translate(-50%, 0);
+    transform: none;
     opacity: 1;
 }
 
@@ -1664,7 +1729,7 @@ kbd {
     gap: 14px;
     background: var(--surface);
     border: 1px solid var(--line);
-    border-radius: 8px;
+    border-radius: var(--radius-card);
     padding: 24px 32px;
     font-size: 0.84rem;
     color: var(--ink-2);
@@ -1740,7 +1805,8 @@ kbd {
     top: 50%;
     transform: translate(-50%, -50%);
     animation: explode 0.8s forwards ease-out;
-    z-index: 10;
+    /* 粒子从名字背后散开：压在名字和座位号上面会像字上落了灰 */
+    z-index: 0;
 }
 
 @keyframes explode {
@@ -1784,7 +1850,7 @@ body.is-fullscreen .result-box .name {
 }
 
 body.is-fullscreen .result-box .seat {
-    font-size: 1.1rem;
+    font-size: clamp(1.1rem, 1.7vw, 2.2rem);
     letter-spacing: 0.2em;
 }
 
@@ -1903,15 +1969,31 @@ body.is-fullscreen .brand-sub {
     .stage-bar {
         padding: 10px 14px;
         gap: 10px;
+        /* 窄屏不再换行：一旦换行，状态徽标会掉到第二行左对齐，
+           和上方分组左对齐成同一条线，条形结构就塌了 */
+        flex-wrap: nowrap;
+    }
+
+    .status-badge {
+        margin-left: auto;
+        white-space: nowrap;
+        flex: none;
     }
 
     .mode-group {
         gap: 8px;
+        min-width: 0;
+    }
+
+    /* 不换行之后每个部件都可能被挤到换行，文字必须自己咬住一行 */
+    .mode-chips {
+        flex: none;
     }
 
     .mode-chip {
         min-height: var(--touch-target);
         padding: 5px 13px;
+        white-space: nowrap;
     }
 
     .roll-display-area {
@@ -1945,16 +2027,15 @@ body.is-fullscreen .brand-sub {
         padding: 12px 14px;
     }
 
+    /* 工具栏允许换行：原来 nowrap + 隐藏滚动条，360px 宽时最后一颗「清空」
+       被切掉一半，既看不出能滑、又刚好把最危险的操作放在边缘 */
     .header-actions {
-        gap: 3px;
-        flex-wrap: nowrap;
-        overflow-x: auto;
-        scrollbar-width: none;
+        gap: 4px;
+        flex-wrap: wrap;
+        overflow: visible;
         max-width: 100%;
-    }
-
-    .header-actions::-webkit-scrollbar {
-        display: none;
+        justify-content: flex-end;
+        row-gap: 6px;
     }
 
     .action-divider {
@@ -2095,36 +2176,22 @@ body.is-fullscreen .brand-sub {
     }
 
     .toast {
-        top: 14px;
+        top: 10px;
+        right: 10px;
         font-size: 0.8rem;
         padding: 9px 14px 9px 12px;
     }
 }
 
-/* 手机名册：一屏定高 + 表格内部滚动，表头才会真正粘住。
-   原因：.table-card 带 overflow: hidden，表头的 sticky 因此以卡片为参照定位；
-   卡片在手机上原本是 height: auto 跟着整页滚，表头就一起滚走，滚到中间只剩没有标签的数字列。
-   让容器恰好占满一屏，.table-container 才是真正的滚动容器，th 才能贴在表格顶部。
-   偏移量交给 flex 计算，不写死像素：页头换行成几行都不会错位。
-   限定 min-height：手机横屏只有 390px 高，定高面板会把表格压到一两行，那里退回整页滚动。 */
-@media (max-width: 768px) and (min-height: 560px) {
-    .app-container:has(#students.active) {
-        height: 100vh;
-        height: 100dvh;
-        overflow: hidden;
-    }
+/* 名册在手机上必须恰好占满一屏，.table-container 才是真正的滚动容器，th 的 sticky 才贴在卡片顶部
+   ——这条结论没变，但实现已经从「:has() + 定高」换成了全局 flex 分配（见 .table-card / .content-area），
+   于是 769–1040px 的桌面窄屏也一并修好了。屏幕太矮时由 .table-card 的 min-height 兜底，退回整页滚动。 */
 
-    /* 中间两层 flex 容器默认 min-height: auto，不清零就撑不住收缩，卡片会顶穿视口 */
-    .app-container:has(#students.active) .content-area,
-    .app-container:has(#students.active) #students.active {
-        min-height: 0;
-    }
-
-    /* 串上 :has 一起生效：不支持 :has 的旧浏览器整块不落地，完全退回改动前的行为 */
-    .app-container:has(#students.active) #students.active > .table-card {
-        flex: 1 1 auto;
-        height: auto;
-        min-height: 0;
+/* 更窄的手机（≤480px）：「抽取人数」这个标签让位给分段控件本身，
+   四颗 chip 已经说明了一切，留着它只会把状态徽标挤到换行 */
+@media (max-width: 480px) {
+    .mode-group .eyebrow {
+        display: none;
     }
 }
 
@@ -2143,7 +2210,7 @@ body.is-fullscreen .brand-sub {
 :is(button, a, input, select, textarea, [tabindex]):focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 2px;
-    border-radius: 3px;
+    border-radius: var(--radius-ctl);
 }
 
 .visually-hidden {

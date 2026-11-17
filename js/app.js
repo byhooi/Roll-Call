@@ -353,7 +353,24 @@ class RollCallApp {
         this.loadInitialData();
         this.restoreTheme();
         this.updateToolButtonsState();
+        this.markActiveTab();
         this.updateUI();
+    }
+
+    /**
+     * 同步导航的选中态。视觉靠下划线，读屏软件只能靠 aria-current。
+     */
+    markActiveTab() {
+        if (!this.elements.tabs) return;
+        this.elements.tabs.forEach(tab => {
+            const isActive = tab.dataset.tab === this.state.activeTab;
+            tab.classList.toggle('active', isActive);
+            if (isActive) {
+                tab.setAttribute('aria-current', 'page');
+            } else {
+                tab.removeAttribute('aria-current');
+            }
+        });
     }
 
     /**
@@ -375,6 +392,7 @@ class RollCallApp {
         this.elements.rollBtn = document.getElementById('roll-btn');
         this.elements.selectedStudent = document.getElementById('selected-student');
         this.elements.studentInfo = document.getElementById('student-info');
+        this.elements.fairnessNote = document.getElementById('fairness-note');
         this.elements.rollStatus = document.getElementById('roll-status');
         this.elements.modeChips = document.querySelectorAll('.mode-chip');
 
@@ -550,6 +568,11 @@ class RollCallApp {
         // 学生管理表格事件（委托：编辑和删除）
         if (this.elements.studentsTbody) {
             this.elements.studentsTbody.addEventListener('click', (event) => {
+                const restoreButton = event.target.closest('[data-action="restore-backup"]');
+                if (restoreButton) {
+                    this.handleRestoreBackup();
+                    return;
+                }
                 const deleteButton = event.target.closest('[data-action="delete-student"]');
                 if (deleteButton) {
                     this.deleteStudent(deleteButton.dataset.id);
@@ -566,7 +589,7 @@ class RollCallApp {
         if (this.elements.studentsSearch) {
             this.elements.studentsSearch.addEventListener('input', (e) => {
                 this.state.studentSearch = e.target.value.trim().toLowerCase();
-                this.updateStudentList();
+                this.scheduleRender('students');
             });
         }
 
@@ -634,7 +657,7 @@ class RollCallApp {
 
         if (this.elements.statsSearch) {
             this.elements.statsSearch.addEventListener('input', () => {
-                this.updateStatistics();
+                this.scheduleRender('statistics');
             });
         }
 
@@ -675,7 +698,7 @@ class RollCallApp {
             });
         }
 
-        // 键盘快捷键：ESC 关闭弹窗
+        // 键盘快捷键：ESC 关闭弹窗，Tab 在弹窗内循环
         document.addEventListener('keydown', (e) => {
             if (e.code === 'Escape') {
                 if (this.elements.addStudentModal && this.elements.addStudentModal.classList.contains('active')) {
@@ -685,7 +708,39 @@ class RollCallApp {
                     this.hideEditStudentModal();
                 }
             }
+
+            if (e.key === 'Tab') {
+                const modal = this.getActiveFormModal();
+                if (!modal) return;
+                const focusables = [...modal.querySelectorAll(
+                    'button:not([disabled]), input:not([disabled]):not([type="hidden"]), select, textarea, [href], [tabindex]:not([tabindex="-1"])'
+                )].filter(el => el.offsetParent !== null);
+                if (!focusables.length) return;
+
+                const first = focusables[0];
+                const last = focusables[focusables.length - 1];
+                if (!modal.contains(document.activeElement)) {
+                    e.preventDefault();
+                    first.focus();
+                } else if (e.shiftKey && document.activeElement === first) {
+                    e.preventDefault();
+                    last.focus();
+                } else if (!e.shiftKey && document.activeElement === last) {
+                    e.preventDefault();
+                    first.focus();
+                }
+            }
         });
+
+        // 多标签页同时打开时，后写的会静默覆盖前面的。监听 storage 事件至少让界面跟上，
+        // 而不是让另一个页面继续显示已经不存在的数据。
+        if (typeof window !== 'undefined') {
+            window.addEventListener('storage', (event) => {
+                if (event.key !== this.storage.storageKey && event.key !== null) return;
+                this.storage.reloadCache();
+                this.refreshUI();
+            });
+        }
 
         // 点击遮罩外部关闭
         if (this.elements.addStudentModal) {
@@ -832,9 +887,7 @@ class RollCallApp {
         this.state.activeTab = tabName;
 
         if (this.elements.tabs) {
-            this.elements.tabs.forEach(tab => {
-                tab.classList.toggle('active', tab.dataset.tab === tabName);
-            });
+            this.markActiveTab();
         }
 
         if (this.elements.tabContents) {
@@ -844,6 +897,23 @@ class RollCallApp {
         }
 
         this.updateCurrentTab();
+    }
+
+    /**
+     * 搜索框按 120ms 合并渲染。
+     * 逐字符全量重建没有意义：120 人时单次重建 15ms，连打三个字就是三次；
+     * 统计页还会顺手重建整张流水表。
+     */
+    scheduleRender(kind) {
+        if (!this._renderTimers) this._renderTimers = {};
+        clearTimeout(this._renderTimers[kind]);
+        this._renderTimers[kind] = setTimeout(() => {
+            if (kind === 'students') {
+                this.updateStudentList();
+            } else {
+                this.updateStatistics();
+            }
+        }, 120);
     }
 
     /**
@@ -1195,7 +1265,18 @@ class RollCallApp {
 
         const resultDisplay = document.querySelector('.roll-display-area');
         if (!resultDisplay) return;
-        const colors = ['#667eea', '#764ba2', '#f093fb', '#4facfe', '#00f2fe', '#43e97b', '#ffd166', '#ff4757'];
+        // 从令牌取色：印刷飞墨只用朱红与墨，深浅主题自动跟随。
+        // 原来那套 #667eea/#764ba2/#f093fb 是通用「科技感」调色板，和纸墨朱红完全不在一个色系。
+        // getComputedStyle 在测试/无 DOM 环境下不存在，此时退回字面色值。
+        const styles = typeof getComputedStyle === 'function' && typeof document !== 'undefined'
+            ? getComputedStyle(document.body)
+            : null;
+        const tokenColors = styles
+            ? ['--accent-solid', '--ink', '--ink-2', '--line-strong']
+                .map(name => styles.getPropertyValue(name).trim())
+                .filter(Boolean)
+            : [];
+        const colors = tokenColors.length ? tokenColors : ['#be3a2b', '#191814'];
         const particleCount = 22;
         const fragment = document.createDocumentFragment();
 
@@ -1333,19 +1414,50 @@ class RollCallApp {
      * 显示添加学生弹窗
      */
     showAddStudentModal() {
-        if (this.elements.addStudentModal) {
-            this.elements.addStudentModal.classList.add('active');
-            if (this.elements.addStudentForm) this.elements.addStudentForm.reset();
-        }
+        if (this.elements.addStudentForm) this.elements.addStudentForm.reset();
+        this.openFormModal(this.elements.addStudentModal, document.getElementById('student-name'));
     }
 
     /**
      * 隐藏添加学生弹窗
      */
     hideAddStudentModal() {
-        if (this.elements.addStudentModal) {
-            this.elements.addStudentModal.classList.remove('active');
+        this.closeFormModal(this.elements.addStudentModal);
+    }
+
+    /**
+     * 表单弹窗的焦点治理。DialogService.confirm 早就有焦点循环与还原，
+     * 这两个表单弹窗一直只是切 .active：键盘用户 Tab 几下就跑到背后的页面里去了。
+     * 这里补齐「记住来源 → 送进首个输入框 → 关闭后还原」，Tab 循环在全局 keydown 里回收。
+     */
+    openFormModal(overlay, focusTarget) {
+        if (!overlay) return;
+        this.modalReturnFocus = document.activeElement;
+        overlay.classList.add('active');
+        // 等 display: none 切换完成再聚焦，否则 focus() 会被忽略
+        requestAnimationFrame(() => {
+            if (focusTarget && typeof focusTarget.focus === 'function') {
+                focusTarget.focus();
+            }
+        });
+    }
+
+    closeFormModal(overlay) {
+        if (!overlay) return;
+        overlay.classList.remove('active');
+        const back = this.modalReturnFocus;
+        this.modalReturnFocus = null;
+        if (back && document.contains(back) && typeof back.focus === 'function') {
+            back.focus();
         }
+    }
+
+    /**
+     * 当前打开的编辑类弹窗（confirm 对话框自带走焦逻辑，不在此列）
+     */
+    getActiveFormModal() {
+        return [this.elements.addStudentModal, this.elements.editStudentModal]
+            .find(modal => modal && modal.classList.contains('active')) || null;
     }
 
     /**
@@ -1392,7 +1504,7 @@ class RollCallApp {
         if (this.elements.editStudentSeat) this.elements.editStudentSeat.value = student.seat;
 
         if (this.elements.editStudentModal) {
-            this.elements.editStudentModal.classList.add('active');
+            this.openFormModal(this.elements.editStudentModal, this.elements.editStudentName);
         }
     }
 
@@ -1400,9 +1512,7 @@ class RollCallApp {
      * 隐藏编辑学生弹窗
      */
     hideEditStudentModal() {
-        if (this.elements.editStudentModal) {
-            this.elements.editStudentModal.classList.remove('active');
-        }
+        this.closeFormModal(this.elements.editStudentModal);
     }
 
     /**
@@ -1498,7 +1608,9 @@ class RollCallApp {
         if (!tbody) return;
 
         if (this.state.students.length === 0) {
-            tbody.replaceChildren(this.buildEmptyRow('—', '暂无数据，请先导入或点击上方「示例」体验'));
+            tbody.replaceChildren(this.buildEmptyRow('—', '暂无数据，请先导入或点击上方「示例」体验', {
+                restore: this.storage.hasBackup()
+            }));
             return;
         }
 
@@ -1576,8 +1688,11 @@ class RollCallApp {
 
     /**
      * 构建表格空状态行
+     * @param {string|null} icon 图标字符
+     * @param {string} text 说明文案
+     * @param {{restore?: boolean}} options 是否附带「恢复上次数据」入口
      */
-    buildEmptyRow(icon, text) {
+    buildEmptyRow(icon, text, options = {}) {
         const row = document.createElement('tr');
         const cell = document.createElement('td');
         cell.colSpan = 5;
@@ -1592,6 +1707,19 @@ class RollCallApp {
             const textEl = document.createElement('p');
             textEl.textContent = text;
             content.append(iconEl, textEl);
+
+            if (options.restore) {
+                const info = this.storage.getBackupInfo();
+                const restoreBtn = document.createElement('button');
+                restoreBtn.type = 'button';
+                restoreBtn.className = 'btn-sm btn-edit empty-action';
+                restoreBtn.dataset.action = 'restore-backup';
+                restoreBtn.textContent = info.hasBackup
+                    ? `恢复上次数据（${this.formatBackupAge(info)}）`
+                    : '恢复上次数据';
+                content.appendChild(restoreBtn);
+            }
+
             cell.appendChild(content);
         } else {
             cell.textContent = text;
@@ -1599,6 +1727,19 @@ class RollCallApp {
 
         row.appendChild(cell);
         return row;
+    }
+
+    /**
+     * 把备份时间说成人话：刚清空的场景下用户只关心「多久以前」
+     */
+    formatBackupAge(info) {
+        if (!info || !info.timestamp) return '上次';
+        const minutes = Math.max(0, Math.round((Date.now() - new Date(info.timestamp).getTime()) / 60000));
+        if (minutes < 1) return '刚刚';
+        if (minutes < 60) return `${minutes} 分钟前`;
+        const hours = Math.round(minutes / 60);
+        if (hours < 24) return `${hours} 小时前`;
+        return `${Math.round(hours / 24)} 天前`;
     }
 
     /**
@@ -1903,9 +2044,9 @@ class RollCallApp {
                 <ul class="confirm-issues">
                     <li>所有学生信息</li>
                     <li>全部点名历史</li>
-                    <li>统计数据与备份</li>
+                    <li>统计数据</li>
                 </ul>
-                <p class="confirm-alert">此操作不可恢复，请谨慎执行。</p>
+                <p class="confirm-alert">清空前的数据会留一份快照，名册的空状态里可以一键恢复。</p>
             `,
             confirmText: '彻底清空',
             cancelText: '保留数据',
@@ -1927,12 +2068,70 @@ class RollCallApp {
     }
 
     /**
+     * 从自动备份恢复。
+     * 这条路径原来只存在于 storage 里，界面上没有任何入口——
+     * 于是「每 5 分钟备份一次」只贡献了配额占用，没有贡献任何安全感。
+     */
+    async handleRestoreBackup() {
+        const info = this.storage.getBackupInfo();
+        if (!info.hasBackup) {
+            NotificationSystem.error('没有找到可恢复的备份');
+            return;
+        }
+
+        const confirmed = await DialogService.confirm({
+            title: '恢复上次数据',
+            message: `<p>将用上次备份（${this.formatBackupAge(info)}）覆盖当前内容。</p>`,
+            confirmText: '恢复',
+            cancelText: '取消',
+            type: 'warning'
+        });
+
+        if (!confirmed) return;
+
+        const result = this.storage.restoreAutoBackup();
+        if (result.success) {
+            this.refreshUI();
+            NotificationSystem.success(result.message);
+        } else {
+            NotificationSystem.error(result.message);
+        }
+    }
+
+    /**
      * 更新全局 UI 状态
      */
     updateUI() {
         if (this.elements.studentCount) {
             this.elements.studentCount.textContent = this.state.students.length;
         }
+        this.updateFairnessNote();
+    }
+
+    /**
+     * 更新卡片底部的候选池提示。
+     * 点名算法每次只从「被点次数最少」的组里抽，这句提示就是那个组的规模——
+     * 没有它，「公平随机」只是作者的说法；有了它，任何一次点名都能当场核对。
+     * 数据直接取算法层的 previewNextCall()，保证界面说的和下一次真正会抽的是同一批人。
+     */
+    updateFairnessNote() {
+        const note = this.elements.fairnessNote;
+        if (!note) return;
+
+        const preview = this.algorithm.previewNextCall();
+        if (!preview || !preview.possibleStudents.length) {
+            note.hidden = true;
+            note.textContent = '';
+            return;
+        }
+
+        const candidates = preview.possibleStudents.length;
+        const minCalls = preview.minCallCount;
+
+        note.hidden = false;
+        note.textContent = minCalls === 0
+            ? `本周期还剩 ${candidates} 人一次都没被点到`
+            : `全班最少已点过 ${minCalls} 次 · 当前候选 ${candidates} 人`;
     }
 
     /**

@@ -507,16 +507,32 @@ class StorageManager {
     }
 
     /**
-     * 清空全部数据
+     * 清空全部数据。
+     * 清空前先把当前数据写进备份位：工具栏那颗「清空」是整个应用里最容易误点的按钮，
+     * 原来的实现顺手把备份一起删了——等于一边每 5 分钟备份、一边在真正危险的时刻抹掉它。
+     * 现在留一份快照，名册的空状态会给出「恢复」入口，自动备份才第一次有了用处。
      */
     clearAllData() {
+        const snapshot = this.getAllData();
+        const hasContent = snapshot.students.length > 0 || snapshot.callHistory.length > 0;
+
+        if (hasContent) {
+            try {
+                localStorage.setItem(this.backupKey, JSON.stringify({
+                    data: snapshot,
+                    timestamp: new Date().toISOString(),
+                    version: '1.0'
+                }));
+                this.lastBackupSignature = JSON.stringify(snapshot);
+            } catch (error) {
+                // 配额不足时不该阻断清空本身
+                console.warn('清空前写入备份失败，继续清空:', error);
+            }
+        }
+
         const emptyData = this.createDefaultData();
         this.updateIndexes(emptyData.students);
-        const result = this.saveAllData(emptyData);
-        if (result) {
-            this.clearAllBackups();
-        }
-        return result;
+        return this.saveAllData(emptyData);
     }
 
     /**

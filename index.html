@@ -6,6 +6,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>点名册 · 公平随机点名</title>
     <meta name="description" content="纯前端班级公平随机点名系统，支持 Excel 名单导入导出与点名统计，数据保存在浏览器本地。">
+    <meta name="theme-color" content="#faf9f5">
+    <!-- 图标直接用页面里的九宫格印章，省一次 404 与一个外部请求 -->
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='4' fill='%23be3a2b'/%3E%3Cg fill='none' stroke='%23faf9f5' stroke-width='1.1'%3E%3Cpath d='M5.4 5.4h13.2v13.2H5.4zM5.4 10.2h13.2M5.4 13.8h13.2M10.2 5.4v13.2M13.8 5.4v13.2'/%3E%3C/g%3E%3Crect x='10.2' y='10.2' width='3.6' height='3.6' fill='%23faf9f5'/%3E%3C/svg%3E">
     <!-- Style -->
     <link rel="stylesheet" href="css/style.css">
 </head>
@@ -117,6 +120,8 @@
                         </div>
                     </div>
                     <div id="student-info" class="student-meta fade-in"></div>
+                    <!-- 候选池提示：把「公平」从口号变成可核对的事实 -->
+                    <div id="fairness-note" class="fairness-note" hidden></div>
                 </div>
             </section>
 
