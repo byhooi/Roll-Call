@@ -780,8 +780,9 @@ class RollCallApp {
      * 切换主题（浅色/深色）
      */
     toggleTheme() {
-        // 默认（无类名）为浅色纸面主题；dark-theme 为夜间主题
+        // 默认（无类名）为现代浅色主题；dark-theme 为曜石暗蓝主题
         const isDark = document.body.classList.toggle('dark-theme');
+        this.syncThemeColor(isDark);
         try {
             localStorage.setItem('roll-call-theme', isDark ? 'dark' : 'light');
         } catch (e) {}
@@ -792,12 +793,26 @@ class RollCallApp {
      * 恢复已保存的主题
      */
     restoreTheme() {
+        let isDark = false;
         try {
             const savedTheme = localStorage.getItem('roll-call-theme');
             if (savedTheme === 'dark') {
                 document.body.classList.add('dark-theme');
+                isDark = true;
             }
         } catch (e) {}
+        this.syncThemeColor(isDark);
+    }
+
+    /**
+     * 同步浏览器顶栏 theme-color（移动端与 PWA 体验）
+     */
+    syncThemeColor(isDark) {
+        if (typeof document === 'undefined' || typeof document.querySelector !== 'function') return;
+        const meta = document.querySelector('meta[name="theme-color"]');
+        if (meta) {
+            meta.setAttribute('content', isDark ? '#0b0f17' : '#f5f7fb');
+        }
     }
 
     /**
@@ -1220,9 +1235,12 @@ class RollCallApp {
             const grid = document.createElement('div');
             grid.className = 'multi-roll-grid';
 
-            list.forEach(student => {
+            list.forEach((student, idx) => {
                 const card = document.createElement('div');
                 card.className = 'multi-student-card flip-in';
+                if (card.style && typeof card.style.setProperty === 'function') {
+                    card.style.setProperty('--card-idx', String(idx));
+                }
 
                 const seat = document.createElement('span');
                 seat.className = 'card-seat';
@@ -1265,18 +1283,17 @@ class RollCallApp {
 
         const resultDisplay = document.querySelector('.roll-display-area');
         if (!resultDisplay) return;
-        // 从令牌取色：印刷飞墨只用朱红与墨，深浅主题自动跟随。
-        // 原来那套 #667eea/#764ba2/#f093fb 是通用「科技感」调色板，和纸墨朱红完全不在一个色系。
+        // 从令牌取色：与钴蓝/松石现代精密色系一致，深浅主题自动跟随。
         // getComputedStyle 在测试/无 DOM 环境下不存在，此时退回字面色值。
         const styles = typeof getComputedStyle === 'function' && typeof document !== 'undefined'
             ? getComputedStyle(document.body)
             : null;
         const tokenColors = styles
-            ? ['--accent-solid', '--ink', '--ink-2', '--line-strong']
+            ? ['--accent', '--accent-deep', '--success', '--ink-2']
                 .map(name => styles.getPropertyValue(name).trim())
                 .filter(Boolean)
             : [];
-        const colors = tokenColors.length ? tokenColors : ['#be3a2b', '#191814'];
+        const colors = tokenColors.length ? tokenColors : ['#2563eb', '#0f766e'];
         const particleCount = 22;
         const fragment = document.createDocumentFragment();
 
@@ -1662,8 +1679,9 @@ class RollCallApp {
 
             const callCell = document.createElement('td');
             const callBadge = document.createElement('span');
-            callBadge.className = 'call-badge';
-            callBadge.textContent = `${student.callCount || 0} 次`;
+            const callCount = student.callCount || 0;
+            callBadge.className = callCount === 0 ? 'call-badge is-zero' : 'call-badge';
+            callBadge.textContent = `${callCount} 次`;
             callCell.appendChild(callBadge);
 
             const timeCell = document.createElement('td');
@@ -1836,8 +1854,12 @@ class RollCallApp {
                 const fragment = document.createDocumentFragment();
 
                 entries.forEach(([count, num]) => {
+                    const pct = Math.round((num / stats.totalStudents) * 100);
                     const chip = document.createElement('div');
                     chip.className = 'distribution-chip';
+                    if (chip.style && typeof chip.style.setProperty === 'function') {
+                        chip.style.setProperty('--pct', `${pct}%`);
+                    }
 
                     const countEl = document.createElement('span');
                     countEl.className = 'chip-count';
@@ -1849,7 +1871,7 @@ class RollCallApp {
 
                     const percentEl = document.createElement('span');
                     percentEl.className = 'chip-percent';
-                    percentEl.textContent = `${Math.round((num / stats.totalStudents) * 100)}%`;
+                    percentEl.textContent = `${pct}%`;
 
                     chip.append(countEl, studentsEl, percentEl);
                     fragment.appendChild(chip);
@@ -1884,13 +1906,19 @@ class RollCallApp {
                 if (filtered.length === 0) {
                     statsGrid.replaceChildren(this.buildEmptyState('未找到匹配的学生'));
                 } else {
+                    const maxCalls = filtered.reduce((max, s) => Math.max(max, s.callCount || 0), 0);
                     const fragment = document.createDocumentFragment();
 
                     filtered.forEach(student => {
                         const card = document.createElement('div');
                         card.className = 'stat-item-card';
-                        if (!student.callCount) {
+                        const calls = student.callCount || 0;
+                        if (!calls) {
                             card.classList.add('is-zero');
+                        }
+                        if (card.style && typeof card.style.setProperty === 'function') {
+                            const ratio = maxCalls > 0 ? Math.round((calls / maxCalls) * 100) : 0;
+                            card.style.setProperty('--call-ratio', `${ratio}%`);
                         }
 
                         const header = document.createElement('div');
